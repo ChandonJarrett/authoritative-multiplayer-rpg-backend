@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Check formatting
+        run: |
+          files=$(gofmt -l .)
+          if [ -n "$files" ]; then
+            echo "Unformatted files:"
+            echo "$files"
+            exit 1
+          fi
+
+  vet:
+    name: Vet
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Run go vet
+        run: go vet ./...
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rpg
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rpg"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      redis:
+        image: redis:8.8.0
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      APP_NAME: rpg-backend
+      APP_ENV: testing
+      LOG_LEVEL: info
+      LOG_FORMAT: text
+
+      API_HTTP_ADDR: :8080
+      GAME_ENET_ADDR: :7777
+      GAME_HTTP_ADDR: :8081
+      SHUTDOWN_TIMEOUT: 10s
+
+      POSTGRES_URL: postgres://postgres:postgres@localhost:5432/rpg?sslmode=disable
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rpg
+      POSTGRES_SSLMODE: disable
+
+      POSTGRES_MAX_CONNS: 10
+      POSTGRES_MIN_CONNS: 1
+      POSTGRES_MAX_CONN_LIFETIME: 1h
+      POSTGRES_MAX_CONN_IDLE_TIME: 30m
+      POSTGRES_HEALTH_CHECK_PERIOD: 1m
+
+      REDIS_ADDR: localhost:6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      REDIS_DIAL_TIMEOUT: 5s
+      REDIS_READ_TIMEOUT: 3s
+      REDIS_WRITE_TIMEOUT: 3s
+      REDIS_POOL_SIZE: 10
+      REDIS_MIN_IDLE_CONNS: 1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Run tests (race)
+        run: go test -race ./...

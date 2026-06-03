@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Running pre-commit checks..."
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+echo "Checking Go formatting..."
+UNFORMATTED="$(gofmt -l . | grep '\.go$' || true)"
+if [ -n "$UNFORMATTED" ]; then
+  echo "ERROR: Go files need formatting:"
+  echo "$UNFORMATTED"
+  echo
+  echo "Run: make fmt"
+  exit 1
+fi
+
+echo "Running go vet..."
+go vet ./...
+
+echo "Running tests..."
+go test ./...
+
+echo "Pre-commit checks passed."
