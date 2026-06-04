@@ -1,0 +1,7 @@
+.git
+.env
+bin
+vendor
+tmp
+*.log
+.DS_Store

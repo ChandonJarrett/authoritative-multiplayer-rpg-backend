@@ -1,0 +1,27 @@
+{
+  "name": "rpg-backend-dev",
+  "dockerComposeFile": [
+    "../compose.yaml",
+    "compose.yaml"
+  ],
+  "service": "app",
+  "workspaceFolder": "/workspace",
+
+  "postCreateCommand": "make setup && make doctor",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.Go"
+      ],
+      "settings": {
+        "go.toolsManagement.autoUpdate": false,
+        "go.testFlags": ["-count=1"],
+        "editor.formatOnSave": true,
+        "go.useLanguageServer": true
+      }
+    }
+  },
+
+  "remoteUser": "root"
+}
