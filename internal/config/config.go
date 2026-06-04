@@ -1,3 +1,4 @@
+// Package config loads, validates, and provides application configuration from environment variables.
 package config
 
 import (
@@ -11,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Config holds all application configuration values.
 type Config struct {
 	AppName   string
 	Env       string
@@ -26,6 +28,7 @@ type Config struct {
 	Redis    RedisConfig
 }
 
+// PostgresConfig holds configuration for connecting to a PostgreSQL database.
 type PostgresConfig struct {
 	URL string
 
@@ -43,6 +46,7 @@ type PostgresConfig struct {
 	HealthCheckPeriod time.Duration
 }
 
+// DSN returns the Data Source Name for connecting to PostgreSQL.
 func (p PostgresConfig) DSN() string {
 	if p.URL != "" {
 		return p.URL
@@ -62,6 +66,7 @@ func (p PostgresConfig) DSN() string {
 	return u.String()
 }
 
+// RedisConfig holds configuration for connecting to a Redis database.
 type RedisConfig struct {
 	Addr     string
 	Password string
@@ -74,6 +79,7 @@ type RedisConfig struct {
 	MinIdleConns int
 }
 
+// Load reads configuration from environment variables, applies defaults, and validates the values.
 func Load() (Config, error) {
 	_ = godotenv.Load()
 

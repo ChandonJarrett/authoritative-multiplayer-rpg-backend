@@ -1,3 +1,4 @@
+// Package db provides PostgreSQL connectivity and transaction utilities.
 package db
 
 import (
@@ -11,8 +12,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// ErrNilPool indicates the PostgreSQL pool is nil.
 var ErrNilPool = errors.New("postgres pool is nil")
 
+// NewPool creates a new PostgreSQL connection pool based on the provided configuration.
 func NewPool(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(cfg.DSN())
 	if err != nil {
@@ -38,6 +41,7 @@ func NewPool(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.Pool, err
 	return pool, nil
 }
 
+// Health checks the PostgreSQL connection pool by pinging the database.
 func Health(ctx context.Context, pool *pgxpool.Pool) error {
 	if pool == nil {
 		return ErrNilPool
@@ -50,12 +54,14 @@ func Health(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
+// Close gracefully closes the PostgreSQL connection pool.
 func Close(pool *pgxpool.Pool) {
 	if pool != nil {
 		pool.Close()
 	}
 }
 
+// Stats represents the current state of the PostgreSQL connection pool.
 type Stats struct {
 	AcquireCount         int64
 	AcquireDuration      time.Duration
@@ -68,6 +74,7 @@ type Stats struct {
 	TotalConns           int32
 }
 
+// Snapshot captures the current statistics of the PostgreSQL connection pool.
 func Snapshot(pool *pgxpool.Pool) (Stats, error) {
 	if pool == nil {
 		return Stats{}, ErrNilPool

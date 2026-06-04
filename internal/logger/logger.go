@@ -1,3 +1,4 @@
+// Package logger provides structured logging configuration using slog.
 package logger
 
 import (
@@ -7,6 +8,7 @@ import (
 	"strings"
 )
 
+// Options defines the configuration for the logger.
 type Options struct {
 	Level      string
 	Format     string
@@ -16,6 +18,7 @@ type Options struct {
 	Attrs      []any
 }
 
+// New creates a new slog.Logger based on the provided options.
 func New(o Options) *slog.Logger {
 	out := o.Output
 	if out == nil {

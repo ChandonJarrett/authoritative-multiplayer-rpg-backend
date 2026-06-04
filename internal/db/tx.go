@@ -10,18 +10,22 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// TxFunc defines the signature of a function that can be executed within a transaction.
 type TxFunc func(ctx context.Context, tx pgx.Tx) error
 
+// InTx executes the provided function within a transaction using the default isolation level.
 func InTx(ctx context.Context, pool *pgxpool.Pool, fn TxFunc) error {
 	return inTxWithOptions(ctx, pool, pgx.TxOptions{}, fn)
 }
 
+// InSerializableTx executes the provided function within a transaction using the Serializable isolation level.
 func InSerializableTx(ctx context.Context, pool *pgxpool.Pool, fn TxFunc) error {
 	return inTxWithOptions(ctx, pool, pgx.TxOptions{
 		IsoLevel: pgx.Serializable,
 	}, fn)
 }
 
+// InReadCommittedTx executes the provided function within a transaction using the Read Committed isolation level.
 func InReadCommittedTx(ctx context.Context, pool *pgxpool.Pool, fn TxFunc) error {
 	return inTxWithOptions(ctx, pool, pgx.TxOptions{
 		IsoLevel: pgx.ReadCommitted,
