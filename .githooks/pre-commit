@@ -6,20 +6,13 @@ echo "Running pre-commit checks..."
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-echo "Checking Go formatting..."
-UNFORMATTED="$(gofmt -l . | grep '\.go$' || true)"
-if [ -n "$UNFORMATTED" ]; then
-  echo "ERROR: Go files need formatting:"
-  echo "$UNFORMATTED"
-  echo
-  echo "Run: make fmt"
+echo "Checking for accidentally staged .env files..."
+if git diff --cached --name-only | grep -E '(^|/)\.env$' >/dev/null; then
+  echo "ERROR: .env is staged. Do not commit secrets."
+  echo "Use .env.example for safe config examples."
   exit 1
 fi
 
-echo "Running go vet..."
-go vet ./...
-
-echo "Running tests..."
-go test ./...
+make precommit
 
 echo "Pre-commit checks passed."
