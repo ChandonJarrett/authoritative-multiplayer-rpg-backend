@@ -1,4 +1,35 @@
+# Environment
 .env
+.env.local
+.env.production
+
+# Logs
 *.log
+
+# Build output
 bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.out
+
+# Temp
+tmp/
+
+# Coverage / profiling
+coverage.out
+coverage.html
+*.coverprofile
+*.pprof
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Other
 vendor/
+.air/
