@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"math"
 	"net/url"
 	"os"
 	"strconv"
@@ -341,7 +342,7 @@ func int32Env(key string, def int32) (int32, error) {
 	if err != nil {
 		return 0, err
 	}
-	if n < -2147483648 || n > 2147483647 {
+	if n < math.MinInt32 || n > math.MaxInt32 {
 		return 0, fmt.Errorf("%s must fit in int32, got %d", key, n)
 	}
 	return int32(n), nil
