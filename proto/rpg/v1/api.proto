@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package rpg.v1;
+
+option go_package = "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1;rpgv1";
+
+import "rpg/v1/common.proto";

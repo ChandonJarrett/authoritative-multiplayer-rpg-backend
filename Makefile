@@ -14,8 +14,9 @@ BIN_DIR  := bin
 API_CMD  := ./cmd/api
 GAME_CMD := ./cmd/game
 
-PROTO_SRC := proto/messages.proto
+PROTO_DIR := proto
 PROTO_OUT := internal/protocol
+PROTO_FILES := $(shell find $(PROTO_DIR) -name '*.proto' | sort)
 PROTOC    := protoc
 
 POSTGRES_URL := postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=$(POSTGRES_SSLMODE)
@@ -228,17 +229,18 @@ proto:
 	PROTOC_GEN_GO_GRPC="$$(go tool -n protoc-gen-go-grpc)"; \
 	PATH="$$(dirname "$$PROTOC_GEN_GO"):$$(dirname "$$PROTOC_GEN_GO_GRPC"):$$PATH" \
 	$(PROTOC) \
+		-I $(PROTO_DIR) \
 		--go_out=$(PROTO_OUT) \
 		--go_opt=paths=source_relative \
 		--go-grpc_out=$(PROTO_OUT) \
 		--go-grpc_opt=paths=source_relative \
-		$(PROTO_SRC)
+		$(PROTO_FILES)
 
 proto-check:
 	$(MAKE) proto
-	@if [ -n "$$(git status --porcelain -- $(PROTO_SRC) $(PROTO_OUT))" ]; then \
+	@if [ -n "$$(git status --porcelain -- $(PROTO_DIR) $(PROTO_OUT))" ]; then \
 		echo "Proto sources or generated files are out of date:"; \
-		git status --short -- $(PROTO_SRC) $(PROTO_OUT); \
+		git status --short -- $(PROTO_DIR) $(PROTO_OUT); \
 		exit 1; \
 	fi
 
