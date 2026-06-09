@@ -7,17 +7,14 @@ services:
     working_dir: /workspace
     volumes:
       - .:/workspace:cached
-      - go-mod-cache:/go/pkg/mod
-      - go-build-cache:/root/.cache/go-build
+      - go-mod-cache:/home/vscode/go/pkg/mod
+      - go-build-cache:/home/vscode/.cache/go-build
+    env_file: 
+      - path: .env
+        required: false
     environment:
       POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: rpg
-      POSTGRES_SSLMODE: disable
-      POSTGRES_URL: postgres://postgres:postgres@postgres:5432/rpg?sslmode=disable
-      REDIS_ADDR: redis:6379
+      REDIS_HOST: redis
     depends_on:
       postgres:
         condition: service_healthy

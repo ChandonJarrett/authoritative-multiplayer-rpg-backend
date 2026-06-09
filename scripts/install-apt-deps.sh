@@ -10,6 +10,8 @@ apt-get install -y --no-install-recommends \
   protobuf-compiler \
   pkg-config \
   build-essential \
-  libenet-dev
+  libenet-dev \
+  postgresql-client \
+  redis-tools
 
 rm -rf /var/lib/apt/lists/*

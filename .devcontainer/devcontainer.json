@@ -6,9 +6,11 @@
   ],
   "service": "app",
   "workspaceFolder": "/workspace",
-
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
   "postCreateCommand": "make setup && make doctor",
-
+  "postStartCommand": "git config --global --get-all safe.directory | grep -Fxq /workspace || git config --global --add safe.directory /workspace",
+  "shutdownAction": "stopCompose",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -16,12 +18,12 @@
       ],
       "settings": {
         "go.toolsManagement.autoUpdate": false,
-        "go.testFlags": ["-count=1"],
+        "go.testFlags": [
+          "-count=1"
+        ],
         "editor.formatOnSave": true,
         "go.useLanguageServer": true
       }
     }
-  },
-
-  "remoteUser": "root"
+  }
 }
