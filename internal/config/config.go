@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"math"
+	"net"
 	"net/url"
 	"os"
 	"strconv"
@@ -11,6 +12,25 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+)
+
+const (
+	defaultAppName   = "rpg-backend"
+	defaultAppEnv    = "local"
+	defaultLogLevel  = "info"
+	defaultLogFormat = "text"
+
+	defaultAPIHTTPAddr  = ":8080"
+	defaultGameENetAddr = ":7777"
+	defaultGameHTTPAddr = ":8081"
+
+	defaultPostgresHost    = "localhost"
+	defaultPostgresPort    = 5432
+	defaultPostgresSSLMode = "disable"
+
+	defaultRedisHost = "localhost"
+	defaultRedisPort = 6379
+	defaultRedisDB   = 0
 )
 
 // Config holds all application configuration values.
@@ -47,29 +67,12 @@ type PostgresConfig struct {
 	HealthCheckPeriod time.Duration
 }
 
-// DSN returns the Data Source Name for connecting to PostgreSQL.
-func (p PostgresConfig) DSN() string {
-	if p.URL != "" {
-		return p.URL
-	}
-
-	u := url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword(p.User, p.Password),
-		Host:   fmt.Sprintf("%s:%d", p.Host, p.Port),
-		Path:   "/" + p.Database,
-	}
-
-	q := u.Query()
-	q.Set("sslmode", p.SSLMode)
-	u.RawQuery = q.Encode()
-
-	return u.String()
-}
-
 // RedisConfig holds configuration for connecting to a Redis database.
 type RedisConfig struct {
-	Addr     string
+	Addr string
+
+	Host     string
+	Port     int
 	Password string
 	DB       int
 
@@ -80,7 +83,7 @@ type RedisConfig struct {
 	MinIdleConns int
 }
 
-// Load reads configuration from environment variables, applies defaults, and validates the values.
+// Load reads config from .env variables, applies defaults, validates values, and generates derived values.
 func Load() (Config, error) {
 	_ = godotenv.Load()
 
@@ -95,7 +98,7 @@ func Load() (Config, error) {
 	shutdownTimeout, e := durEnv("SHUTDOWN_TIMEOUT", 10*time.Second)
 	captureErr(e)
 
-	postgresPort, e := intEnv("POSTGRES_PORT", 5432)
+	postgresPort, e := intEnv("POSTGRES_PORT", defaultPostgresPort)
 	captureErr(e)
 
 	postgresMaxConns, e := int32Env("POSTGRES_MAX_CONNS", 10)
@@ -113,7 +116,10 @@ func Load() (Config, error) {
 	postgresHealthCheckPeriod, e := durEnv("POSTGRES_HEALTH_CHECK_PERIOD", time.Minute)
 	captureErr(e)
 
-	redisDB, e := intEnv("REDIS_DB", 0)
+	redisPort, e := intEnv("REDIS_PORT", defaultRedisPort)
+	captureErr(e)
+
+	redisDB, e := intEnv("REDIS_DB", defaultRedisDB)
 	captureErr(e)
 
 	redisDialTimeout, e := durEnv("REDIS_DIAL_TIMEOUT", 5*time.Second)
@@ -136,24 +142,23 @@ func Load() (Config, error) {
 	}
 
 	cfg := Config{
-		AppName:   env("APP_NAME", "rpg-backend"),
-		Env:       env("APP_ENV", "local"),
-		LogLevel:  env("LOG_LEVEL", "info"),
-		LogFormat: env("LOG_FORMAT", "text"),
+		AppName:   env("APP_NAME", defaultAppName),
+		Env:       env("APP_ENV", defaultAppEnv),
+		LogLevel:  env("LOG_LEVEL", defaultLogLevel),
+		LogFormat: env("LOG_FORMAT", defaultLogFormat),
 
-		APIHTTPAddr:     env("API_HTTP_ADDR", ":8080"),
-		GameENetAddr:    env("GAME_ENET_ADDR", ":7777"),
-		GameHTTPAddr:    env("GAME_HTTP_ADDR", ":8081"),
+		APIHTTPAddr:     env("API_HTTP_ADDR", defaultAPIHTTPAddr),
+		GameENetAddr:    env("GAME_ENET_ADDR", defaultGameENetAddr),
+		GameHTTPAddr:    env("GAME_HTTP_ADDR", defaultGameHTTPAddr),
 		ShutdownTimeout: shutdownTimeout,
 
 		Postgres: PostgresConfig{
-			URL:      os.Getenv("POSTGRES_URL"),
-			Host:     env("POSTGRES_HOST", "localhost"),
+			Host:     env("POSTGRES_HOST", defaultPostgresHost),
 			Port:     postgresPort,
-			User:     os.Getenv("POSTGRES_USER"),
+			User:     strings.TrimSpace(os.Getenv("POSTGRES_USER")),
 			Password: os.Getenv("POSTGRES_PASSWORD"),
-			Database: os.Getenv("POSTGRES_DB"),
-			SSLMode:  env("POSTGRES_SSLMODE", "disable"),
+			Database: strings.TrimSpace(os.Getenv("POSTGRES_DB")),
+			SSLMode:  env("POSTGRES_SSLMODE", defaultPostgresSSLMode),
 
 			MaxConns:          postgresMaxConns,
 			MinConns:          postgresMinConns,
@@ -163,7 +168,8 @@ func Load() (Config, error) {
 		},
 
 		Redis: RedisConfig{
-			Addr:     env("REDIS_ADDR", "localhost:6379"),
+			Host:     env("REDIS_HOST", defaultRedisHost),
+			Port:     redisPort,
 			Password: os.Getenv("REDIS_PASSWORD"),
 			DB:       redisDB,
 
@@ -179,7 +185,29 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	cfg.Postgres.URL = postgresURLFromFields(cfg.Postgres)
+	cfg.Redis.Addr = redisAddrFromFields(cfg.Redis)
+
 	return cfg, nil
+}
+
+func postgresURLFromFields(p PostgresConfig) string {
+	u := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(p.User, p.Password),
+		Host:   net.JoinHostPort(p.Host, strconv.Itoa(p.Port)),
+		Path:   "/" + p.Database,
+	}
+
+	q := u.Query()
+	q.Set("sslmode", p.SSLMode)
+	u.RawQuery = q.Encode()
+
+	return u.String()
+}
+
+func redisAddrFromFields(r RedisConfig) string {
+	return net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
 }
 
 // --- VALIDATION ---
@@ -188,30 +216,39 @@ func (c Config) validate() error {
 	if c.AppName == "" {
 		return fmt.Errorf("APP_NAME is required")
 	}
+
 	if !oneOf(c.Env, "local", "development", "testing", "staging", "production") {
 		return fmt.Errorf("invalid APP_ENV: %q", c.Env)
 	}
+
 	if !oneOf(c.LogLevel, "debug", "info", "warn", "error") {
 		return fmt.Errorf("invalid LOG_LEVEL: %q", c.LogLevel)
 	}
+
 	if !oneOf(c.LogFormat, "text", "json") {
 		return fmt.Errorf("invalid LOG_FORMAT: %q", c.LogFormat)
 	}
+
 	if c.APIHTTPAddr == "" {
 		return fmt.Errorf("API_HTTP_ADDR is required")
 	}
+
 	if c.GameENetAddr == "" {
 		return fmt.Errorf("GAME_ENET_ADDR is required")
 	}
+
 	if c.GameHTTPAddr == "" {
 		return fmt.Errorf("GAME_HTTP_ADDR is required")
 	}
+
 	if c.ShutdownTimeout <= 0 {
-		return fmt.Errorf("SHUTDOWN_TIMEOUT must be positive")
+		return fmt.Errorf("SHUTDOWN_TIMEOUT must be > 0, got %s", c.ShutdownTimeout)
 	}
+
 	if err := c.Postgres.validate(); err != nil {
 		return fmt.Errorf("postgres config: %w", err)
 	}
+
 	if err := c.Redis.validate(); err != nil {
 		return fmt.Errorf("redis config: %w", err)
 	}
@@ -221,45 +258,53 @@ func (c Config) validate() error {
 
 func (p PostgresConfig) validate() error {
 	if p.URL != "" {
-		if err := validatePostgresURL(p.URL); err != nil {
-			return err
-		}
-	} else {
-		if p.Host == "" {
-			return fmt.Errorf("POSTGRES_HOST is required when POSTGRES_URL is not set")
-		}
-		if p.Port <= 0 || p.Port > 65535 {
-			return fmt.Errorf("POSTGRES_PORT must be between 1 and 65535, got %d", p.Port)
-		}
-		if p.User == "" {
-			return fmt.Errorf("POSTGRES_USER is required when POSTGRES_URL is not set")
-		}
-		if p.Password == "" {
-			return fmt.Errorf("POSTGRES_PASSWORD is required when POSTGRES_URL is not set")
-		}
-		if p.Database == "" {
-			return fmt.Errorf("POSTGRES_DB is required when POSTGRES_URL is not set")
-		}
-		if !oneOf(p.SSLMode, "disable", "require", "verify-ca", "verify-full") {
-			return fmt.Errorf("invalid POSTGRES_SSLMODE: %q", p.SSLMode)
-		}
+		return fmt.Errorf("POSTGRES_URL must not be set directly; it is generated from POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, and POSTGRES_SSLMODE")
+	}
+
+	if p.Host == "" {
+		return fmt.Errorf("POSTGRES_HOST is required")
+	}
+
+	if p.Port <= 0 || p.Port > 65535 {
+		return fmt.Errorf("POSTGRES_PORT must be between 1 and 65535, got %d", p.Port)
+	}
+
+	if p.User == "" {
+		return fmt.Errorf("POSTGRES_USER is required")
+	}
+
+	if p.Password == "" {
+		return fmt.Errorf("POSTGRES_PASSWORD is required")
+	}
+
+	if p.Database == "" {
+		return fmt.Errorf("POSTGRES_DB is required")
+	}
+
+	if !oneOf(p.SSLMode, "disable", "require", "verify-ca", "verify-full") {
+		return fmt.Errorf("invalid POSTGRES_SSLMODE: %q", p.SSLMode)
 	}
 
 	if p.MaxConns < 1 {
 		return fmt.Errorf("POSTGRES_MAX_CONNS must be >= 1, got %d", p.MaxConns)
 	}
+
 	if p.MinConns < 0 {
 		return fmt.Errorf("POSTGRES_MIN_CONNS must be >= 0, got %d", p.MinConns)
 	}
+
 	if p.MaxConns < p.MinConns {
 		return fmt.Errorf("POSTGRES_MAX_CONNS (%d) must be >= POSTGRES_MIN_CONNS (%d)", p.MaxConns, p.MinConns)
 	}
+
 	if p.MaxConnLifetime < 0 {
 		return fmt.Errorf("POSTGRES_MAX_CONN_LIFETIME must be >= 0, got %s", p.MaxConnLifetime)
 	}
+
 	if p.MaxConnIdleTime < 0 {
 		return fmt.Errorf("POSTGRES_MAX_CONN_IDLE_TIME must be >= 0, got %s", p.MaxConnIdleTime)
 	}
+
 	if p.HealthCheckPeriod <= 0 {
 		return fmt.Errorf("POSTGRES_HEALTH_CHECK_PERIOD must be > 0, got %s", p.HealthCheckPeriod)
 	}
@@ -267,46 +312,43 @@ func (p PostgresConfig) validate() error {
 	return nil
 }
 
-func validatePostgresURL(raw string) error {
-	u, err := url.Parse(raw)
-	if err != nil {
-		return fmt.Errorf("invalid POSTGRES_URL: %w", err)
-	}
-	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
-		return fmt.Errorf("POSTGRES_URL must use postgres or postgresql scheme")
-	}
-	if u.Host == "" {
-		return fmt.Errorf("POSTGRES_URL must include host")
-	}
-	if u.User == nil || u.User.Username() == "" {
-		return fmt.Errorf("POSTGRES_URL must include user")
-	}
-	if strings.TrimPrefix(u.Path, "/") == "" {
-		return fmt.Errorf("POSTGRES_URL must include database name")
-	}
-
-	return nil
-}
-
 func (r RedisConfig) validate() error {
-	if r.Addr == "" {
-		return fmt.Errorf("REDIS_ADDR is required")
+	if r.Addr != "" {
+		return fmt.Errorf("REDIS_ADDR must not be set directly; it is generated from REDIS_HOST and REDIS_PORT")
 	}
+
+	if r.Host == "" {
+		return fmt.Errorf("REDIS_HOST is required")
+	}
+
+	if r.Port <= 0 || r.Port > 65535 {
+		return fmt.Errorf("REDIS_PORT must be between 1 and 65535, got %d", r.Port)
+	}
+
 	if r.DB < 0 {
 		return fmt.Errorf("REDIS_DB must be >= 0, got %d", r.DB)
 	}
+
 	if r.PoolSize < 1 {
 		return fmt.Errorf("REDIS_POOL_SIZE must be >= 1, got %d", r.PoolSize)
 	}
+
 	if r.MinIdleConns < 0 {
 		return fmt.Errorf("REDIS_MIN_IDLE_CONNS must be >= 0, got %d", r.MinIdleConns)
 	}
+
+	if r.MinIdleConns > r.PoolSize {
+		return fmt.Errorf("REDIS_MIN_IDLE_CONNS (%d) must be <= REDIS_POOL_SIZE (%d)", r.MinIdleConns, r.PoolSize)
+	}
+
 	if r.DialTimeout <= 0 {
 		return fmt.Errorf("REDIS_DIAL_TIMEOUT must be > 0, got %s", r.DialTimeout)
 	}
+
 	if r.ReadTimeout <= 0 {
 		return fmt.Errorf("REDIS_READ_TIMEOUT must be > 0, got %s", r.ReadTimeout)
 	}
+
 	if r.WriteTimeout <= 0 {
 		return fmt.Errorf("REDIS_WRITE_TIMEOUT must be > 0, got %s", r.WriteTimeout)
 	}
@@ -320,6 +362,7 @@ func env(key, def string) string {
 	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
 		return v
 	}
+
 	return def
 }
 
@@ -342,9 +385,11 @@ func int32Env(key string, def int32) (int32, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	if n < math.MinInt32 || n > math.MaxInt32 {
 		return 0, fmt.Errorf("%s must fit in int32, got %d", key, n)
 	}
+
 	return int32(n), nil
 }
 
@@ -368,5 +413,6 @@ func oneOf(v string, allowed ...string) bool {
 			return true
 		}
 	}
+
 	return false
 }

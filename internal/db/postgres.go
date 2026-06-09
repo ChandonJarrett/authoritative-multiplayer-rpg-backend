@@ -17,7 +17,7 @@ var ErrNilPool = errors.New("postgres pool is nil")
 
 // NewPool creates a new PostgreSQL connection pool based on the provided configuration.
 func NewPool(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.Pool, error) {
-	poolCfg, err := pgxpool.ParseConfig(cfg.DSN())
+	poolCfg, err := pgxpool.ParseConfig(cfg.URL)
 	if err != nil {
 		return nil, fmt.Errorf("parse postgres config: %w", err)
 	}
