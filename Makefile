@@ -14,11 +14,6 @@ BIN_DIR  := bin
 API_CMD  := ./cmd/api
 GAME_CMD := ./cmd/game
 
-PROTO_DIR := proto
-PROTO_OUT := internal/protocol
-PROTO_FILES := $(shell find $(PROTO_DIR) -name '*.proto' | sort)
-PROTOC    := protoc
-
 POSTGRES_URL := postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=$(POSTGRES_SSLMODE)
 
 MIGRATE := migrate -path=migrations -database "$(POSTGRES_URL)"
@@ -63,9 +58,11 @@ help:
 	"  make build             Build API and game server binaries" \
 	"  make clean             Remove built binaries" \
 	"" \
-	"Code generation:" \
+	"Protobuf:" \
 	"  make proto             Regenerate protobuf Go code" \
 	"  make proto-check       Verify protobuf generated code is current" \
+	"  make proto-lint        Lint protobuf definitions with buf" \
+	"  make proto-breaking    Check for breaking protobuf changes against main" \
 	"" \
 	"Quality:" \
 	"  make check             Run local quality checks" \
@@ -92,9 +89,9 @@ doctor:
 	@echo "Checking development environment..."
 	@go version
 	@go env GOMOD
-	@$(PROTOC) --version
 	@pkg-config --exists libenet
 	@echo "libenet found"
+	@go tool buf --version >/dev/null
 	@go tool golangci-lint version >/dev/null
 	@go tool -n goimports >/dev/null
 	@go tool govulncheck -version >/dev/null
@@ -221,37 +218,46 @@ clean:
 	rm -rf $(BIN_DIR)
 
 # --- Protobuf ---
-.PHONY: proto proto-check
+.PHONY: proto proto-check proto-lint proto-breaking
 
 proto:
-	@mkdir -p $(PROTO_OUT)
 	@PROTOC_GEN_GO="$$(go tool -n protoc-gen-go)"; \
 	PROTOC_GEN_GO_GRPC="$$(go tool -n protoc-gen-go-grpc)"; \
-	PATH="$$(dirname "$$PROTOC_GEN_GO"):$$(dirname "$$PROTOC_GEN_GO_GRPC"):$$PATH" \
-	$(PROTOC) \
-		-I $(PROTO_DIR) \
-		--go_out=$(PROTO_OUT) \
-		--go_opt=paths=source_relative \
-		--go-grpc_out=$(PROTO_OUT) \
-		--go-grpc_opt=paths=source_relative \
-		$(PROTO_FILES)
+	PROTOC_GEN_CONNECT_GO="$$(go tool -n protoc-gen-connect-go)"; \
+	PATH="$$(dirname "$$PROTOC_GEN_GO"):$$(dirname "$$PROTOC_GEN_GO_GRPC"):$$(dirname "$$PROTOC_GEN_CONNECT_GO"):$$PATH" \
+	go tool buf generate
+
+	$(MAKE) fmt
 
 proto-check:
 	$(MAKE) proto
-	@if [ -n "$$(git status --porcelain -- $(PROTO_DIR) $(PROTO_OUT))" ]; then \
+	@if [ -n "$$(git status --porcelain -- proto internal/protocol)" ]; then \
 		echo "Proto sources or generated files are out of date:"; \
-		git status --short -- $(PROTO_DIR) $(PROTO_OUT); \
+		git status --short -- proto internal/protocol; \
 		exit 1; \
+	fi
+
+proto-lint:
+	go tool buf lint
+
+proto-breaking:
+	@if git rev-parse --verify origin/main >/dev/null 2>&1; then \
+		PROTOC_GEN_GO="$$(go tool -n protoc-gen-go)"; \
+		PROTOC_GEN_GO_GRPC="$$(go tool -n protoc-gen-go-grpc)"; \
+		PATH="$$(dirname "$$PROTOC_GEN_GO"):$$(dirname "$$PROTOC_GEN_GO_GRPC"):$$PATH" \
+		go tool buf breaking --against '.git#branch=origin/main'; \
+	else \
+		echo "Skipping breaking check: origin/main not found"; \
 	fi
 
 # --- Quality ---
 .PHONY: check ci-check precommit tidy tidy-check fmt fmt-check vet lint vuln test test-race
 
-check: tidy-check fmt-check vet lint test
+check: tidy-check fmt-check proto-lint vet lint test
 
-ci-check: tidy-check fmt-check proto-check vet lint vuln test-race
+ci-check: tidy-check fmt-check proto-lint proto-check vet lint vuln test-race
 
-precommit: tidy-check fmt-check vet lint test
+precommit: tidy-check fmt-check proto-lint vet lint test
 
 tidy:
 	go mod tidy

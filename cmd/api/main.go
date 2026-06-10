@@ -12,6 +12,8 @@ func main() {
 
 	rt.Log.Info("api server ready", "addr", rt.Config.APIHTTPAddr)
 
+	// TODO: start ConnectRPC handler
+
 	<-rt.Context.Done()
 
 	rt.Log.Info("shutdown signal received")

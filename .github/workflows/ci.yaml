@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install OS dependencies
         run: sudo bash scripts/install-apt-deps.sh
@@ -35,7 +37,10 @@ jobs:
         run: make tools
 
       - name: Run quality checks
-        run: make tidy-check fmt-check proto-check vet lint vuln
+        run: make tidy-check fmt-check proto-lint proto-check vet lint vuln
+
+      - name: Check for breaking proto changes
+        run: make proto-breaking
 
   test:
     name: Tests
@@ -66,43 +71,12 @@ jobs:
           --health-timeout 3s
           --health-retries 10
 
-    env:
-      APP_NAME: rpg-backend
-      APP_ENV: testing
-      LOG_LEVEL: info
-      LOG_FORMAT: text
-
-      API_HTTP_ADDR: :8080
-      GAME_ENET_ADDR: :7777
-      GAME_HTTP_ADDR: :8081
-      SHUTDOWN_TIMEOUT: 10s
-
-      POSTGRES_URL: postgres://postgres:postgres@localhost:5432/rpg?sslmode=disable
-      POSTGRES_HOST: localhost
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: rpg
-      POSTGRES_SSLMODE: disable
-
-      POSTGRES_MAX_CONNS: 10
-      POSTGRES_MIN_CONNS: 1
-      POSTGRES_MAX_CONN_LIFETIME: 1h
-      POSTGRES_MAX_CONN_IDLE_TIME: 30m
-      POSTGRES_HEALTH_CHECK_PERIOD: 1m
-
-      REDIS_ADDR: localhost:6379
-      REDIS_PASSWORD: ""
-      REDIS_DB: 0
-      REDIS_DIAL_TIMEOUT: 5s
-      REDIS_READ_TIMEOUT: 3s
-      REDIS_WRITE_TIMEOUT: 3s
-      REDIS_POOL_SIZE: 10
-      REDIS_MIN_IDLE_CONNS: 1
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: Prepare env file
+        run: cp .env.example .env
 
       - name: Install OS dependencies
         run: sudo bash scripts/install-apt-deps.sh
@@ -119,5 +93,8 @@ jobs:
       - name: Install Go tools
         run: make tools
 
+      - name: Run database migrations
+        run: make migrate-up
+
       - name: Run tests with race detector
-        run: make test-race
+        run: make test-race APP_ENV=testing
