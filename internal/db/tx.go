@@ -10,6 +10,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// ErrNilTxFunc indicates the transaction function is nil.
+var ErrNilTxFunc = errors.New("transaction function is nil")
+
 // TxFunc defines the signature of a function that can be executed within a transaction.
 type TxFunc func(ctx context.Context, tx pgx.Tx) error
 
@@ -37,7 +40,7 @@ func inTxWithOptions(ctx context.Context, pool *pgxpool.Pool, opts pgx.TxOptions
 		return ErrNilPool
 	}
 	if fn == nil {
-		return errors.New("transaction function is nil")
+		return ErrNilTxFunc
 	}
 
 	tx, err := pool.BeginTx(ctx, opts)

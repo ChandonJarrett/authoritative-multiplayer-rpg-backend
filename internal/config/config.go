@@ -87,6 +87,13 @@ type RedisConfig struct {
 func Load() (Config, error) {
 	_ = godotenv.Load()
 
+	if strings.TrimSpace(os.Getenv("POSTGRES_URL")) != "" {
+		return Config{}, fmt.Errorf("POSTGRES_URL must not be set directly; use POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, and POSTGRES_SSLMODE")
+	}
+	if strings.TrimSpace(os.Getenv("REDIS_ADDR")) != "" {
+		return Config{}, fmt.Errorf("REDIS_ADDR must not be set directly; use REDIS_HOST and REDIS_PORT")
+	}
+
 	var err error
 
 	captureErr := func(e error) {
@@ -257,10 +264,6 @@ func (c Config) validate() error {
 }
 
 func (p PostgresConfig) validate() error {
-	if p.URL != "" {
-		return fmt.Errorf("POSTGRES_URL must not be set directly; it is generated from POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, and POSTGRES_SSLMODE")
-	}
-
 	if p.Host == "" {
 		return fmt.Errorf("POSTGRES_HOST is required")
 	}
@@ -313,10 +316,6 @@ func (p PostgresConfig) validate() error {
 }
 
 func (r RedisConfig) validate() error {
-	if r.Addr != "" {
-		return fmt.Errorf("REDIS_ADDR must not be set directly; it is generated from REDIS_HOST and REDIS_PORT")
-	}
-
 	if r.Host == "" {
 		return fmt.Errorf("REDIS_HOST is required")
 	}
