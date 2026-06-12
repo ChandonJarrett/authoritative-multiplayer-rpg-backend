@@ -14,7 +14,14 @@ import (
 // ErrNilClient indicates the Redis client is nil.
 var ErrNilClient = errors.New("redis client is nil")
 
-// NewClient creates and returns a new Redis client based on the provided configuration.
+// Client is the minimal Redis client behavior used by this package.
+type Client interface {
+	Ping(ctx context.Context) *goredis.StatusCmd
+	Close() error
+	PoolStats() *goredis.PoolStats
+}
+
+// NewClient creates a Redis client from configuration and verifies connectivity.
 func NewClient(ctx context.Context, cfg config.RedisConfig) (*goredis.Client, error) {
 	client := goredis.NewClient(&goredis.Options{
 		Addr:         cfg.Addr,
@@ -27,16 +34,16 @@ func NewClient(ctx context.Context, cfg config.RedisConfig) (*goredis.Client, er
 		MinIdleConns: cfg.MinIdleConns,
 	})
 
-	if err := client.Ping(ctx).Err(); err != nil {
+	if err := Health(ctx, client); err != nil {
 		_ = client.Close()
-		return nil, fmt.Errorf("ping redis: %w", err)
+		return nil, err
 	}
 
 	return client, nil
 }
 
-// Health checks the connectivity of the Redis client by sending a PING command.
-func Health(ctx context.Context, client *goredis.Client) error {
+// Health verifies Redis connectivity with a PING command.
+func Health(ctx context.Context, client Client) error {
 	if client == nil {
 		return ErrNilClient
 	}
@@ -48,8 +55,8 @@ func Health(ctx context.Context, client *goredis.Client) error {
 	return nil
 }
 
-// Close gracefully closes the Redis client connection.
-func Close(client *goredis.Client) error {
+// Close closes the Redis client.
+func Close(client Client) error {
 	if client == nil {
 		return nil
 	}
@@ -61,7 +68,7 @@ func Close(client *goredis.Client) error {
 	return nil
 }
 
-// Stats represents the connection pool statistics of the Redis client.
+// Stats represents Redis connection pool statistics.
 type Stats struct {
 	PoolHits     uint32
 	PoolMisses   uint32
@@ -71,8 +78,8 @@ type Stats struct {
 	StaleConns   uint32
 }
 
-// Snapshot retrieves the current connection pool statistics from the Redis client.
-func Snapshot(client *goredis.Client) (Stats, error) {
+// Snapshot returns Redis connection pool statistics.
+func Snapshot(client Client) (Stats, error) {
 	if client == nil {
 		return Stats{}, ErrNilClient
 	}

@@ -23,25 +23,25 @@ cat > "$tmp" <<'GO'
 package main
 
 import (
-    "fmt"
-    "net"
-    "net/url"
-    "os"
+  "fmt"
+  "net"
+  "net/url"
+  "os"
 )
 
 func main() {
-    u := url.URL{
-        Scheme: "postgres",
-        User:   url.UserPassword(os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD")),
-        Host:   net.JoinHostPort(os.Getenv("POSTGRES_HOST"), os.Getenv("POSTGRES_PORT")),
-        Path:   "/" + os.Getenv("POSTGRES_DB"),
-    }
+  u := url.URL{
+    Scheme: "postgres",
+    User:   url.UserPassword(os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD")),
+    Host:   net.JoinHostPort(os.Getenv("POSTGRES_HOST"), os.Getenv("POSTGRES_PORT")),
+    Path:   "/" + os.Getenv("POSTGRES_DB"),
+  }
 
-    q := u.Query()
-    q.Set("sslmode", os.Getenv("POSTGRES_SSLMODE"))
-    u.RawQuery = q.Encode()
+  q := u.Query()
+  q.Set("sslmode", os.Getenv("POSTGRES_SSLMODE"))
+  u.RawQuery = q.Encode()
 
-    fmt.Println(u.String())
+  fmt.Println(u.String())
 }
 GO
 

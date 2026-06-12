@@ -1,3 +1,4 @@
+// Package cache provides Redis connectivity, key construction, and cache-related utilities.
 package cache
 
 import (
@@ -5,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/config"
 )
 
 const keySeparator = ":"
@@ -23,59 +26,59 @@ const (
 	DefaultSessionTTL       = 2 * time.Hour
 )
 
-// KeyBuilder constructs Redis keys with a consistent format and validation.
+// KeyBuilder constructs Redis keys with a consistent namespace and validation.
 type KeyBuilder struct {
 	prefix string
 }
 
-// NewKeyBuilder creates a new KeyBuilder with the given application and environment namespaces.
-func NewKeyBuilder(app, env string) (KeyBuilder, error) {
-	if err := validateSegment(app); err != nil {
+// NewKeyBuilder creates a KeyBuilder from application configuration.
+func NewKeyBuilder(cfg config.Config) (KeyBuilder, error) {
+	if err := validateSegment(cfg.AppName); err != nil {
 		return KeyBuilder{}, fmt.Errorf("app namespace: %w", err)
 	}
-	if err := validateSegment(env); err != nil {
+	if err := validateSegment(cfg.Env); err != nil {
 		return KeyBuilder{}, fmt.Errorf("env namespace: %w", err)
 	}
 
-	return KeyBuilder{prefix: app + keySeparator + env}, nil
+	return KeyBuilder{prefix: cfg.AppName + keySeparator + cfg.Env}, nil
 }
 
-// Prefix returns the prefix used for all keys built by this KeyBuilder.
+// Prefix returns the namespace prefix used for every generated key.
 func (k KeyBuilder) Prefix() string {
 	return k.prefix
 }
 
-// JoinToken constructs a Redis key for a join token with the given token ID.
+// JoinToken constructs a Redis key for a join token.
 func (k KeyBuilder) JoinToken(tokenID string) (string, error) {
 	return k.build("join_token", tokenID)
 }
 
-// Session constructs a Redis key for a session with the given session ID.
+// Session constructs a Redis key for an authenticated session.
 func (k KeyBuilder) Session(sessionID string) (string, error) {
 	return k.build("session", sessionID)
 }
 
-// UserSessions constructs a Redis key for all sessions associated with a user ID.
+// UserSessions constructs a Redis key for sessions owned by a user.
 func (k KeyBuilder) UserSessions(userID string) (string, error) {
 	return k.build("user_sessions", userID)
 }
 
-// Server constructs a Redis key for a server with the given server ID.
+// Server constructs a Redis key for a game server registry entry.
 func (k KeyBuilder) Server(serverID string) (string, error) {
 	return k.build("server", serverID)
 }
 
-// ServerSessions constructs a Redis key for all sessions associated with a server ID.
+// ServerSessions constructs a Redis key for sessions active on a server.
 func (k KeyBuilder) ServerSessions(serverID string) (string, error) {
 	return k.build("server_sessions", serverID)
 }
 
-// ServersIndex constructs a Redis key for the index of all servers.
+// ServersIndex constructs a Redis key for the game server index.
 func (k KeyBuilder) ServersIndex() (string, error) {
 	return k.build("servers")
 }
 
-// CharacterLock constructs a Redis key for a character lock with the given character ID.
+// CharacterLock constructs a Redis key for a character lock.
 func (k KeyBuilder) CharacterLock(characterID string) (string, error) {
 	return k.build("character_lock", characterID)
 }

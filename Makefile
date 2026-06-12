@@ -12,6 +12,10 @@ ENV_RUN := scripts/env-run.sh
 MIGRATE_URL = $$($(ENV_RUN) scripts/postgres-url.sh)
 MIGRATE = migrate -path=migrations -database "$(MIGRATE_URL)"
 
+COVER_EXCLUDE := /internal/protocol|/cmd/
+COVER_PKGS := $(shell go list ./... | grep -Ev '$(COVER_EXCLUDE)')
+COVER_PKGS_CSV := $(shell go list ./... | grep -Ev '$(COVER_EXCLUDE)' | paste -sd, -)
+
 .PHONY: help
 help:
 	@printf "%s\n" \
@@ -124,7 +128,8 @@ migrate-version:
 .PHONY: run-api run-game build clean \
 	proto proto-check proto-lint proto-breaking \
 	tidy tidy-check fmt fmt-check vet lint vuln \
-	test test-unit test-integration test-race coverage \
+	test test-unit test-integration test-race \
+	coverage coverage-integration \
 	ci-fast ci
 
 run-api:
@@ -215,8 +220,12 @@ test-race:
 	go test -race ./...
 
 coverage:
-	go test -count=1 -coverprofile=coverage.out ./...
+	go test -count=1 -covermode=atomic -coverpkg="$(COVER_PKGS_CSV)" -coverprofile=coverage.out $(COVER_PKGS)
 	go tool cover -func=coverage.out
+
+coverage-integration:
+	$(ENV_RUN) env APP_ENV=testing go test -tags=integration -count=1 -covermode=atomic -coverpkg="$(COVER_PKGS_CSV)" -coverprofile=coverage-integration.out $(COVER_PKGS)
+	go tool cover -func=coverage-integration.out
 
 # CI targets
 ci-fast: tidy-check fmt-check proto-lint vet lint test-unit

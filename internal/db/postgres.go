@@ -15,7 +15,7 @@ import (
 // ErrNilPool indicates the PostgreSQL pool is nil.
 var ErrNilPool = errors.New("postgres pool is nil")
 
-// NewPool creates a new PostgreSQL connection pool based on the provided configuration.
+// NewPool creates a PostgreSQL connection pool and verifies connectivity.
 func NewPool(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(cfg.URL)
 	if err != nil {
@@ -33,15 +33,15 @@ func NewPool(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.Pool, err
 		return nil, fmt.Errorf("create postgres pool: %w", err)
 	}
 
-	if err := pool.Ping(ctx); err != nil {
+	if err := Health(ctx, pool); err != nil {
 		pool.Close()
-		return nil, fmt.Errorf("ping postgres: %w", err)
+		return nil, err
 	}
 
 	return pool, nil
 }
 
-// Health checks the PostgreSQL connection pool by pinging the database.
+// Health checks PostgreSQL connectivity by pinging the database.
 func Health(ctx context.Context, pool *pgxpool.Pool) error {
 	if pool == nil {
 		return ErrNilPool
@@ -54,14 +54,14 @@ func Health(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
-// Close gracefully closes the PostgreSQL connection pool.
+// Close closes the PostgreSQL pool.
 func Close(pool *pgxpool.Pool) {
 	if pool != nil {
 		pool.Close()
 	}
 }
 
-// Stats represents the current state of the PostgreSQL connection pool.
+// Stats represents PostgreSQL connection pool statistics.
 type Stats struct {
 	AcquireCount         int64
 	AcquireDuration      time.Duration
@@ -74,7 +74,7 @@ type Stats struct {
 	TotalConns           int32
 }
 
-// Snapshot captures the current statistics of the PostgreSQL connection pool.
+// Snapshot captures PostgreSQL connection pool statistics.
 func Snapshot(pool *pgxpool.Pool) (Stats, error) {
 	if pool == nil {
 		return Stats{}, ErrNilPool

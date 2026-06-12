@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Options defines the configuration for the logger.
+// Options defines logger configuration.
 type Options struct {
 	Level      string
 	Format     string
@@ -18,7 +18,7 @@ type Options struct {
 	Attrs      []any
 }
 
-// New creates a new slog.Logger based on the provided options.
+// New creates a slog.Logger from options.
 func New(o Options) *slog.Logger {
 	out := o.Output
 	if out == nil {
@@ -26,7 +26,7 @@ func New(o Options) *slog.Logger {
 	}
 
 	opts := &slog.HandlerOptions{
-		Level:     parseLevel(o.Level),
+		Level:     ParseLevel(o.Level),
 		AddSource: o.AddSource,
 	}
 
@@ -51,7 +51,8 @@ func New(o Options) *slog.Logger {
 	return log
 }
 
-func parseLevel(level string) slog.Level {
+// ParseLevel converts a string log level into a slog level.
+func ParseLevel(level string) slog.Level {
 	switch strings.ToLower(strings.TrimSpace(level)) {
 	case "debug":
 		return slog.LevelDebug
@@ -65,15 +66,3 @@ func parseLevel(level string) slog.Level {
 		return slog.LevelInfo
 	}
 }
-
-/*
-Example usage:
-
-log := logger.New(logger.Options{
-	Level:      cfg.LogLevel,
-	Format:     cfg.LogFormat,
-	AddSource:  true,
-	SetDefault: true,
-	Attrs:      []any{"service", "api"},
-})
-*/

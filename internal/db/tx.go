@@ -4,55 +4,57 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // ErrNilTxFunc indicates the transaction function is nil.
 var ErrNilTxFunc = errors.New("transaction function is nil")
 
-// TxFunc defines the signature of a function that can be executed within a transaction.
+var rollbackTimeout = 5 * time.Second
+
+// TxBeginner is the minimal dependency required to start a transaction.
+type TxBeginner interface {
+	BeginTx(ctx context.Context, opts pgx.TxOptions) (pgx.Tx, error)
+}
+
+// TxFunc defines work executed inside a transaction.
 type TxFunc func(ctx context.Context, tx pgx.Tx) error
 
-// InTx executes the provided function within a transaction using the default isolation level.
-func InTx(ctx context.Context, pool *pgxpool.Pool, fn TxFunc) error {
-	return inTxWithOptions(ctx, pool, pgx.TxOptions{}, fn)
+// InTx executes a function inside a transaction using the default isolation level.
+func InTx(ctx context.Context, beginner TxBeginner, fn TxFunc) error {
+	return inTxWithOptions(ctx, beginner, pgx.TxOptions{}, fn)
 }
 
-// InSerializableTx executes the provided function within a transaction using the Serializable isolation level.
-func InSerializableTx(ctx context.Context, pool *pgxpool.Pool, fn TxFunc) error {
-	return inTxWithOptions(ctx, pool, pgx.TxOptions{
-		IsoLevel: pgx.Serializable,
-	}, fn)
+// InSerializableTx executes a function inside a Serializable transaction.
+func InSerializableTx(ctx context.Context, beginner TxBeginner, fn TxFunc) error {
+	return inTxWithOptions(ctx, beginner, pgx.TxOptions{IsoLevel: pgx.Serializable}, fn)
 }
 
-// InReadCommittedTx executes the provided function within a transaction using the Read Committed isolation level.
-func InReadCommittedTx(ctx context.Context, pool *pgxpool.Pool, fn TxFunc) error {
-	return inTxWithOptions(ctx, pool, pgx.TxOptions{
-		IsoLevel: pgx.ReadCommitted,
-	}, fn)
+// InReadCommittedTx executes a function inside a Read Committed transaction.
+func InReadCommittedTx(ctx context.Context, beginner TxBeginner, fn TxFunc) error {
+	return inTxWithOptions(ctx, beginner, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, fn)
 }
 
-func inTxWithOptions(ctx context.Context, pool *pgxpool.Pool, opts pgx.TxOptions, fn TxFunc) error {
-	if pool == nil {
+func inTxWithOptions(ctx context.Context, beginner TxBeginner, opts pgx.TxOptions, fn TxFunc) error {
+	if isNil(beginner) {
 		return ErrNilPool
 	}
 	if fn == nil {
 		return ErrNilTxFunc
 	}
 
-	tx, err := pool.BeginTx(ctx, opts)
+	tx, err := beginner.BeginTx(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 
 	committed := false
-
 	defer func() {
 		if !committed {
-			rollbackCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			rollbackCtx, cancel := context.WithTimeout(context.Background(), rollbackTimeout)
 			defer cancel()
 			_ = tx.Rollback(rollbackCtx)
 		}
@@ -68,4 +70,18 @@ func inTxWithOptions(ctx context.Context, pool *pgxpool.Pool, opts pgx.TxOptions
 
 	committed = true
 	return nil
+}
+
+func isNil(value any) bool {
+	if value == nil {
+		return true
+	}
+
+	reflected := reflect.ValueOf(value)
+	switch reflected.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return reflected.IsNil()
+	default:
+		return false
+	}
 }
