@@ -1,20 +1,22 @@
 {
   "name": "rpg-backend-dev",
   "dockerComposeFile": [
-    "../compose.yaml",
-    "compose.yaml"
+    "compose.yaml",
+    "../compose.yaml"
   ],
   "service": "app",
   "workspaceFolder": "/workspace",
   "remoteUser": "vscode",
   "updateRemoteUserUID": true,
-  "postCreateCommand": "make setup && make doctor",
+  "postCreateCommand": "make setup",
   "postStartCommand": "git config --global --get-all safe.directory | grep -Fxq /workspace || git config --global --add safe.directory /workspace",
   "shutdownAction": "stopCompose",
   "customizations": {
     "vscode": {
       "extensions": [
-        "golang.Go"
+        "golang.go",
+        "bufbuild.vscode-buf",
+        "redhat.vscode-yaml"
       ],
       "settings": {
         "go.toolsManagement.autoUpdate": false,

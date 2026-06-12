@@ -1,111 +1,66 @@
-ENV_FILE ?= .env
-
-ifneq (,$(wildcard $(ENV_FILE)))
-$(foreach line,$(shell grep -v '^[[:space:]]*#' $(ENV_FILE)), \
-  $(eval key := $(firstword $(subst =, ,$(line)))) \
-  $(eval val := $(subst $(key)=,,$(line))) \
-  $(eval $(key) ?= $(val)) \
-  $(eval export $(key)) \
-)
-endif
-
-BIN_DIR  := bin
-
-API_CMD  := ./cmd/api
-GAME_CMD := ./cmd/game
-
-POSTGRES_URL := postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=$(POSTGRES_SSLMODE)
-
-MIGRATE := migrate -path=migrations -database "$(POSTGRES_URL)"
-
 SHELL := /usr/bin/env bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-GO_FILES := $(shell git ls-files '*.go') $(shell git ls-files --others --exclude-standard '*.go')
+BIN_DIR  := bin
+API_CMD  := ./cmd/api
+GAME_CMD := ./cmd/game
+
+GO_FILES = $(shell git ls-files '*.go') $(shell git ls-files --others --exclude-standard '*.go')
+
+ENV_RUN := scripts/env-run.sh
+
+MIGRATE_URL = $$($(ENV_RUN) scripts/postgres-url.sh)
+MIGRATE = migrate -path=migrations -database "$(MIGRATE_URL)"
 
 .PHONY: help
 help:
 	@printf "%s\n" \
-	"Available commands:" \
-	"" \
 	"Setup:" \
-	"  make setup             Initialize local development environment" \
-	"  make doctor            Check required local/devcontainer tools" \
-	"  make env-init           Create .env from .env.example if it doesn't exist" \
-	"  make hooks             Install repository Git hooks" \
-	"  make tools             Install Go tools declared in go.mod tool block" \
+	"  make setup             Initialize dev/local environment" \
+	"  make doctor            Check required tools" \
 	"" \
 	"Environment:" \
-	"  make env-up            Start PostgreSQL and Redis, then wait for health" \
-	"  make env-down          Stop local environment" \
-	"  make env-reset         Destroy and recreate local environment volumes" \
-	"  make env-ps            List local environment containers" \
-	"  make env-health        Check PostgreSQL and Redis health" \
-	"  make env-logs          Follow local environment logs" \
-	"  make db-shell          Open psql shell" \
-	"  make redis-shell       Open redis-cli shell" \
+	"  make env-up            Start PostgreSQL and Redis" \
+	"  make env-down          Stop services" \
+	"  make env-reset         Recreate service volumes" \
+	"  make env-logs          Follow service logs" \
 	"" \
 	"Migrations:" \
-	"  make migrate-up        Apply all pending migrations" \
+	"  make migrate-up        Apply migrations" \
 	"  make migrate-down      Roll back one migration" \
-	"  make migrate-reset     Roll back all migrations, then re-apply them" \
-	"  make migrate-version   Check the current migration version" \
-	"  make migrate-force     Force set migration version (use with caution)" \
+	"  make migrate-reset     Reset all migrations" \
+	"  make migrate-version   Show migration version" \
 	"" \
-	"Run/build:" \
+	"Development:" \
 	"  make run-api           Run API server" \
 	"  make run-game          Run game server" \
-	"  make build             Build API and game server binaries" \
-	"  make clean             Remove built binaries" \
-	"" \
-	"Protobuf:" \
-	"  make proto             Regenerate protobuf Go code" \
-	"  make proto-check       Verify protobuf generated code is current" \
-	"  make proto-lint        Lint protobuf definitions with buf" \
-	"  make proto-breaking    Check for breaking protobuf changes against main" \
-	"" \
-	"Quality:" \
-	"  make check             Run local quality checks" \
-	"  make ci-check          Run full CI checks" \
-	"  make precommit         Run fast pre-commit checks" \
-	"  make tidy              Run go mod tidy" \
-	"  make tidy-check        Verify go.mod/go.sum are tidy" \
-	"  make fmt               Format Go code" \
-	"  make fmt-check         Verify Go formatting/imports" \
-	"  make vet               Run go vet" \
-	"  make lint              Run golangci-lint" \
-	"  make vuln              Run govulncheck" \
-	"  make test              Run tests" \
-	"  make test-race         Run tests with race detector"
+	"  make proto             Regenerate protobuf code" \
+	"  make test              Run unit and integration tests" \
+	"  make ci-fast           Fast pre-commit checks" \
+	"  make ci                Full CI checks"
 
 # --- Setup ---
-.PHONY: setup doctor env-init hooks tools
+.PHONY: setup doctor compose-check env-init hooks tools
 
 setup: env-init hooks tools
 	go mod download
+	$(MAKE) migrate-up
+	$(MAKE) doctor
 	@echo "Setup complete"
 
 doctor:
-	@echo "Checking development environment..."
 	@go version
 	@go env GOMOD
 	@pkg-config --exists libenet
-	@echo "libenet found"
 	@go tool buf --version >/dev/null
 	@go tool golangci-lint version >/dev/null
 	@go tool -n goimports >/dev/null
 	@go tool govulncheck -version >/dev/null
 	@migrate -version >/dev/null
-	@go mod download
-	@if command -v docker >/dev/null 2>&1; then \
-		docker version >/dev/null; \
-		docker compose version >/dev/null; \
-		docker compose config --quiet; \
-		echo "Docker and Compose found"; \
-	else \
-		echo "Docker CLI not found in this shell; skipping Docker checks"; \
-	fi
-	@echo "Development environment looks usable."
+	@echo "Environment OK"
+
+compose-check:
+	docker compose -f compose.yaml -f .devcontainer/compose.yaml config --quiet
 
 env-init:
 	@if [ ! -f .env ]; then \
@@ -117,43 +72,24 @@ env-init:
 
 hooks:
 	git config core.hooksPath .githooks
-	@echo "Git hooks installed from .githooks"
+	@echo "Git hooks installed"
 
 tools:
 	go install tool
-
 	go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.19.1
-# golang-migrate requires database driver build tags, so we install it explicitly.
 
 # --- Environment ---
-.PHONY: env-up env-down env-reset env-ps env-health env-logs db-shell redis-shell
+.PHONY: env-up env-down env-reset env-logs db-shell redis-shell
 
 env-up:
-	docker compose up -d
-	@echo "Waiting for PostgreSQL..."
-	@until docker compose exec -T postgres pg_isready -U "$${POSTGRES_USER:-postgres}" -d "$${POSTGRES_DB:-rpg}" >/dev/null 2>&1; do \
-		sleep 1; \
-	done
-	@echo "Waiting for Redis..."
-	@until docker compose exec -T redis redis-cli ping | grep -q PONG; do \
-		sleep 1; \
-	done
-	@echo "Environment is ready."
+	docker compose up -d --wait
 
 env-down:
 	docker compose down
 
 env-reset:
 	docker compose down -v
-	$(MAKE) env-up
-
-env-ps:
-	docker compose ps
-
-env-health:
-	docker compose ps
-	docker compose exec -T postgres pg_isready -U "$${POSTGRES_USER:-postgres}" -d "$${POSTGRES_DB:-rpg}"
-	docker compose exec -T redis redis-cli ping
+	docker compose up -d --wait
 
 env-logs:
 	docker compose logs -f
@@ -169,7 +105,7 @@ redis-shell:
 	fi
 
 # --- Migrations ---
-.PHONY: migrate-up migrate-down migrate-reset migrate-version migrate-force
+.PHONY: migrate-up migrate-down migrate-reset migrate-version
 
 migrate-up:
 	$(MIGRATE) up
@@ -184,81 +120,53 @@ migrate-reset:
 migrate-version:
 	$(MIGRATE) version
 
-migrate-force:
-	@if [ -z "$${VERSION:-}" ]; then \
-		echo "Usage: VERSION=<version> make migrate-force"; \
-		exit 1; \
-	fi
-	$(MIGRATE) force "$${VERSION}"
-
-# --- Run ---
-.PHONY: run-api run-game
+# --- Development ---
+.PHONY: run-api run-game build clean \
+	proto proto-check proto-lint proto-breaking \
+	tidy tidy-check fmt fmt-check vet lint vuln \
+	test test-unit test-integration test-race coverage \
+	ci-fast ci
 
 run-api:
-	go run $(API_CMD)
+	$(ENV_RUN) go run $(API_CMD)
 
 run-game:
-	go run $(GAME_CMD)
+	$(ENV_RUN) go run $(GAME_CMD)
 
-# --- Build ---
-.PHONY: build clean
-
-build: $(BIN_DIR)/api $(BIN_DIR)/game
+build: $(BIN_DIR)
+	go build -o $(BIN_DIR)/api $(API_CMD)
+	go build -o $(BIN_DIR)/game $(GAME_CMD)
 
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 
-$(BIN_DIR)/api: | $(BIN_DIR)
-	go build -o $@ $(API_CMD)
-
-$(BIN_DIR)/game: | $(BIN_DIR)
-	go build -o $@ $(GAME_CMD)
-
 clean:
 	rm -rf $(BIN_DIR)
 
-# --- Protobuf ---
-.PHONY: proto proto-check proto-lint proto-breaking
-
+# Protobuf generation and checks
 proto:
 	@PROTOC_GEN_GO="$$(go tool -n protoc-gen-go)"; \
 	PROTOC_GEN_GO_GRPC="$$(go tool -n protoc-gen-go-grpc)"; \
 	PROTOC_GEN_CONNECT_GO="$$(go tool -n protoc-gen-connect-go)"; \
 	PATH="$$(dirname "$$PROTOC_GEN_GO"):$$(dirname "$$PROTOC_GEN_GO_GRPC"):$$(dirname "$$PROTOC_GEN_CONNECT_GO"):$$PATH" \
 	go tool buf generate
-
 	$(MAKE) fmt
 
 proto-check:
 	$(MAKE) proto
-	@if [ -n "$$(git status --porcelain -- proto internal/protocol)" ]; then \
-		echo "Proto sources or generated files are out of date:"; \
-		git status --short -- proto internal/protocol; \
-		exit 1; \
-	fi
+	@git diff --exit-code -- proto internal/protocol
 
 proto-lint:
 	go tool buf lint
 
 proto-breaking:
 	@if git rev-parse --verify origin/main >/dev/null 2>&1; then \
-		PROTOC_GEN_GO="$$(go tool -n protoc-gen-go)"; \
-		PROTOC_GEN_GO_GRPC="$$(go tool -n protoc-gen-go-grpc)"; \
-		PATH="$$(dirname "$$PROTOC_GEN_GO"):$$(dirname "$$PROTOC_GEN_GO_GRPC"):$$PATH" \
 		go tool buf breaking --against '.git#branch=origin/main'; \
 	else \
-		echo "Skipping breaking check: origin/main not found"; \
+		echo "Skipping proto breaking check: origin/main not found"; \
 	fi
 
-# --- Quality ---
-.PHONY: check ci-check precommit tidy tidy-check fmt fmt-check vet lint vuln test test-race
-
-check: tidy-check fmt-check proto-lint vet lint test
-
-ci-check: tidy-check fmt-check proto-lint proto-check vet lint vuln test-race
-
-precommit: tidy-check fmt-check proto-lint vet lint test
-
+# Quality checks
 tidy:
 	go mod tidy
 
@@ -272,19 +180,16 @@ fmt:
 	fi
 
 fmt-check:
-	@echo "Running gofmt and goimports checks..."
 	@files="$$(gofmt -l $(GO_FILES))"; \
 	if [ -n "$$files" ]; then \
 		echo "Go files need gofmt:"; \
 		echo "$$files"; \
-		echo "Run: make fmt"; \
 		exit 1; \
 	fi
 	@files="$$(go tool goimports -l $(GO_FILES))"; \
 	if [ -n "$$files" ]; then \
 		echo "Go files need goimports:"; \
 		echo "$$files"; \
-		echo "Run: make fmt"; \
 		exit 1; \
 	fi
 
@@ -297,8 +202,23 @@ lint:
 vuln:
 	go tool govulncheck ./...
 
-test:
-	go test ./...
+# Tests
+test: test-unit test-integration
+
+test-unit:
+	go test -count=1 ./...
+
+test-integration:
+	$(ENV_RUN) env APP_ENV=testing go test -count=1 -tags=integration ./...
 
 test-race:
 	go test -race ./...
+
+coverage:
+	go test -count=1 -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out
+
+# CI targets
+ci-fast: tidy-check fmt-check proto-lint vet lint test-unit
+
+ci: tidy-check fmt-check proto-lint proto-check vet lint vuln test-race test-integration

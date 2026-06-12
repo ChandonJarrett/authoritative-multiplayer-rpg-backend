@@ -6,13 +6,13 @@ echo "Running pre-commit checks..."
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-echo "Checking for accidentally staged .env files..."
-if git diff --cached --name-only | grep -E '(^|/)\.env$' >/dev/null; then
-  echo "ERROR: .env is staged. Do not commit secrets."
+echo "Checking for accidentally staged environment files..."
+if git diff --cached --name-only | grep -E '(^|/)\.env(\..*)?$' | grep -vE '(^|/)\.env\.example$' >/dev/null; then
+  echo "ERROR: environment file is staged. Do not commit secrets."
   echo "Use .env.example for safe config examples."
   exit 1
 fi
 
-make precommit
+make ci-fast
 
 echo "Pre-commit checks passed."

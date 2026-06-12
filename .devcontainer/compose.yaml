@@ -1,16 +1,16 @@
 services:
   app:
     build:
-      context: .
+      context: ..
       dockerfile: .devcontainer/Dockerfile
     command: sleep infinity
     working_dir: /workspace
     volumes:
-      - .:/workspace:cached
+      - ..:/workspace:cached
       - go-mod-cache:/home/vscode/go/pkg/mod
       - go-build-cache:/home/vscode/.cache/go-build
     env_file: 
-      - path: .env
+      - path: ../.env
         required: false
     environment:
       POSTGRES_HOST: postgres
