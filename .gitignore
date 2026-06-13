@@ -19,12 +19,6 @@ dist/
 # Temp
 tmp/
 
-# Coverage / profiling
-coverage.out
-coverage.html
-*.coverprofile
-*.pprof
-
 # OS / IDE
 .DS_Store
 .idea/
@@ -33,3 +27,5 @@ coverage.html
 # Other
 vendor/
 .air/
+*.coverprofile
+*.pprof
