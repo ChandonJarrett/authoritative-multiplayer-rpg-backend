@@ -44,7 +44,7 @@ help:
 	"  make ci                Full CI checks"
 
 # --- Setup ---
-.PHONY: setup doctor compose-check env-init hooks tools
+.PHONY: setup doctor compose-check env-init hooks tools tools-go tools-migrate
 
 setup: env-init hooks tools
 	go mod download
@@ -78,8 +78,12 @@ hooks:
 	git config core.hooksPath .githooks
 	@echo "Git hooks installed"
 
-tools:
+tools: tools-go tools-migrate
+
+tools-go:
 	go install tool
+
+tools-migrate:
 	go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.19.1
 
 # --- Environment ---
@@ -165,10 +169,12 @@ proto-lint:
 	go tool buf lint
 
 proto-breaking:
-	@if git rev-parse --verify origin/main >/dev/null 2>&1; then \
-		go tool buf breaking --against '.git#branch=origin/main'; \
-	else \
+	@if ! git rev-parse --verify origin/main >/dev/null 2>&1; then \
 		echo "Skipping proto breaking check: origin/main not found"; \
+	elif ! git ls-tree -r --name-only origin/main -- proto | grep -q '\.proto$$'; then \
+		echo "Skipping proto breaking check: origin/main has no proto files"; \
+	else \
+		go tool buf breaking --against '.git#branch=origin/main'; \
 	fi
 
 # Quality checks

@@ -32,12 +32,20 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      
+      - name: Cache Go tool binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin
+          key: ${{ runner.os }}-go-tools-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-tools-
 
       - name: Download modules
         run: go mod download
 
       - name: Install Go tools
-        run: make tools
+        run: make tools-go
       
       - name: Validate compose config
         run: make compose-check
@@ -119,12 +127,20 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      
+      - name: Cache Go tool binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin
+          key: ${{ runner.os }}-go-tools-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-tools-
 
       - name: Download modules
         run: go mod download
 
-      - name: Install Go tools
-        run: make tools
+      - name: Install migration tool
+        run: make tools-migrate
 
       - name: Run migrations
         run: make migrate-up
