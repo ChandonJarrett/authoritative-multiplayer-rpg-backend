@@ -12,9 +12,9 @@ ENV_RUN := scripts/env-run.sh
 MIGRATE_URL = $$($(ENV_RUN) scripts/postgres-url.sh)
 MIGRATE = migrate -path=migrations -database "$(MIGRATE_URL)"
 
-COVER_EXCLUDE := /internal/protocol|/cmd/
-COVER_PKGS := $(shell go list ./... | grep -Ev '$(COVER_EXCLUDE)')
-COVER_PKGS_CSV := $(shell go list ./... | grep -Ev '$(COVER_EXCLUDE)' | paste -sd, -)
+TEST_EXCLUDE := /internal/protocol|/cmd/
+TEST_PKGS := $(shell go list ./... | grep -Ev '$(TEST_EXCLUDE)')
+COVER_PKGS_CSV := $(shell go list ./... | grep -Ev '$(TEST_EXCLUDE)' | paste -sd, -)
 
 .PHONY: help
 help:
@@ -211,20 +211,20 @@ vuln:
 test: test-unit test-integration
 
 test-unit:
-	go test -count=1 ./...
+	go test -count=1 $(TEST_PKGS)
 
 test-integration:
-	$(ENV_RUN) env APP_ENV=testing go test -count=1 -tags=integration ./...
+	$(ENV_RUN) env APP_ENV=testing go test -count=1 -tags=integration $(TEST_PKGS)
 
 test-race:
-	go test -race ./...
+	go test -race -count=1 $(TEST_PKGS)
 
 coverage:
-	go test -count=1 -covermode=atomic -coverpkg="$(COVER_PKGS_CSV)" -coverprofile=coverage.out $(COVER_PKGS)
+	go test -count=1 -covermode=atomic -coverpkg="$(COVER_PKGS_CSV)" -coverprofile=coverage.out $(TEST_PKGS)
 	go tool cover -func=coverage.out
 
 coverage-integration:
-	$(ENV_RUN) env APP_ENV=testing go test -tags=integration -count=1 -covermode=atomic -coverpkg="$(COVER_PKGS_CSV)" -coverprofile=coverage-integration.out $(COVER_PKGS)
+	$(ENV_RUN) env APP_ENV=testing go test -tags=integration -count=1 -covermode=atomic -coverpkg="$(COVER_PKGS_CSV)" -coverprofile=coverage-integration.out $(TEST_PKGS)
 	go tool cover -func=coverage-integration.out
 
 # CI targets

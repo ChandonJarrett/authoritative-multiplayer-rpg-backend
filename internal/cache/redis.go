@@ -11,17 +11,20 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 )
 
-// ErrNilClient indicates the Redis client is nil.
+// ErrNilClient is returned when a nil Redis client is passed to a function that requires one.
 var ErrNilClient = errors.New("redis client is nil")
 
-// Client is the minimal Redis client behavior used by this package.
+// ErrNilPoolStats is returned when PoolStats returns nil.
+var ErrNilPoolStats = errors.New("redis pool stats is nil")
+
+// Client is the minimal Redis interface required by this package; *goredis.Client satisfies this interface.
 type Client interface {
 	Ping(ctx context.Context) *goredis.StatusCmd
 	Close() error
 	PoolStats() *goredis.PoolStats
 }
 
-// NewClient creates a Redis client from configuration and verifies connectivity.
+// NewClient creates and validates a Redis client from configuration.
 func NewClient(ctx context.Context, cfg config.RedisConfig) (*goredis.Client, error) {
 	client := goredis.NewClient(&goredis.Options{
 		Addr:         cfg.Addr,
@@ -42,16 +45,14 @@ func NewClient(ctx context.Context, cfg config.RedisConfig) (*goredis.Client, er
 	return client, nil
 }
 
-// Health verifies Redis connectivity with a PING command.
+// Health verifies Redis connectivity with a PING.
 func Health(ctx context.Context, client Client) error {
 	if client == nil {
 		return ErrNilClient
 	}
-
 	if err := client.Ping(ctx).Err(); err != nil {
-		return fmt.Errorf("redis health check failed: %w", err)
+		return fmt.Errorf("redis ping: %w", err)
 	}
-
 	return nil
 }
 
@@ -60,15 +61,13 @@ func Close(client Client) error {
 	if client == nil {
 		return nil
 	}
-
 	if err := client.Close(); err != nil {
-		return fmt.Errorf("close redis client: %w", err)
+		return fmt.Errorf("close redis: %w", err)
 	}
-
 	return nil
 }
 
-// Stats represents Redis connection pool statistics.
+// Stats is a snapshot of Redis connection pool statistics.
 type Stats struct {
 	PoolHits     uint32
 	PoolMisses   uint32
@@ -78,14 +77,15 @@ type Stats struct {
 	StaleConns   uint32
 }
 
-// Snapshot returns Redis connection pool statistics.
+// Snapshot returns a point-in-time snapshot of Redis connection pool statistics.
 func Snapshot(client Client) (Stats, error) {
 	if client == nil {
 		return Stats{}, ErrNilClient
 	}
-
 	s := client.PoolStats()
-
+	if s == nil {
+		return Stats{}, ErrNilPoolStats
+	}
 	return Stats{
 		PoolHits:     s.Hits,
 		PoolMisses:   s.Misses,

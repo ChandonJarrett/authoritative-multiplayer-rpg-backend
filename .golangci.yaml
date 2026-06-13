@@ -9,25 +9,35 @@ run:
 linters:
   default: none
   enable:
-    - errcheck
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
-    - revive
-    - gocritic
+    # Core correctness
+    - errcheck      # unchecked errors
+    - govet         # go vet checks (printf format, copylocks, etc.)
+    - staticcheck   # broad static analysis (SA*, S*, ST*, QF*)
+    - unused        # unused code
+
+    # Additional correctness
+    - ineffassign   # assignments overwritten before use
+    - nilerr        # return nil where err should propagate
+    - predeclared   # shadowing of built-in identifiers (new, len, etc.)
+    - unconvert     # unnecessary type conversions
+
+    # Style and maintainability
+    - revive        # opinionated Go style rules
+    - gocritic      # code smells and simplification hints
 
   exclusions:
     generated: lax
     rules:
+      # errcheck is noisy in tests where failures cause t.Fatal anyway
       - path: _test\.go
         linters:
           - errcheck
 
 formatters:
   enable:
-    - gofmt
-    - goimports
+    - gofmt       # canonical formatting
+    - gofumpt     # stricter superset of gofmt (consistent blank lines, etc.)
+    - goimports   # import grouping and unused import removal
 
 issues:
   max-issues-per-linter: 0

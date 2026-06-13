@@ -21,6 +21,7 @@ make test-unit
 ```
 
 Covers:
+
 - Config parsing, defaults, and validation
 - Redis key construction and validation
 - Logger setup and level filtering
@@ -42,13 +43,17 @@ make migrate-up
 make test-integration
 ```
 
-Integration tests use the `//go:build integration` build tag. On a local machine they **skip gracefully** when services are unavailable. In CI they **fail hard** (the `CI=true` environment variable triggers this, see `internal/testutil/integration.go`).
+Integration tests use the `//go:build integration` build tag. They use `testutil.SkipOnServiceError` (see `internal/testutil/integration.go`) to handle service-connection failures in one of two ways:
+
+- **Locally** (CI not set): skips gracefully with a message.
+- **In CI** (`CI=true`): fails hard, because services are always expected to be available.
 
 Covers:
+
 - PostgreSQL connectivity, pool stats, and `SELECT 1`
 - Redis connectivity, set/get round-trip, and pool stats
 - Transaction commit and rollback behavior
-- Migration schema: tables, columns, types, indexes, triggers, and functions
+- Migration schema: tables, columns, types, indexes, triggers, functions, and extensions
 
 ---
 
@@ -60,29 +65,15 @@ Run the full test suite with Go's race detector enabled.
 make test-race
 ```
 
-Use before merging any changes that touch shared state or concurrency. Race tests are slower and are not required in every local run, CI runs them automatically.
+Use before merging any changes that touch shared state or concurrency. Race tests are slower and are not required in every local run; CI runs them automatically.
 
 ---
 
 ## Coverage
 
 ```bash
-make coverage         # prints per-function summary to stdout
+make coverage              # unit tests only
+make coverage-integration  # unit + integration tests
 ```
 
-To open an interactive HTML report:
-
-```bash
-go test -count=1 -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
-```
-
----
-
-## Conventions
-
-- Tests that don't need external services must **not** use `//go:build integration`.
-- Tests that need PostgreSQL or Redis **must** use `//go:build integration`.
-- Use unique test keys in Redis (e.g. keyed by `t.Name()`) with short TTLs.
-- Prefer creating temporary tables in PostgreSQL integration tests; drop them in a `defer` or `t.Cleanup`.
-- Never rely on pre-existing rows in the database.
+Both commands print a per-function summary. The integration coverage profile (`coverage-integration.out`) is the authoritative one for CI reporting.

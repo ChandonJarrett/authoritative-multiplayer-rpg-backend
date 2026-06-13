@@ -2,6 +2,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -25,12 +26,9 @@ const (
 	defaultGameHTTPAddr    = ":8081"
 	defaultShutdownTimeout = 10 * time.Second
 
-	defaultPostgresHost     = "localhost"
-	defaultPostgresPort     = 5432
-	defaultPostgresUser     = "postgres"
-	defaultPostgresPassword = "postgres"
-	defaultPostgresDB       = "rpg"
-	defaultPostgresSSLMode  = "disable"
+	defaultPostgresHost    = "localhost"
+	defaultPostgresPort    = 5432
+	defaultPostgresSSLMode = "disable"
 
 	defaultPostgresMaxConns          = 10
 	defaultPostgresMinConns          = 1
@@ -59,17 +57,15 @@ type EnvSource interface {
 type OSEnv struct{}
 
 // LookupEnv returns a process environment variable.
-func (OSEnv) LookupEnv(key string) (string, bool) {
-	return os.LookupEnv(key)
-}
+func (OSEnv) LookupEnv(key string) (string, bool) { return os.LookupEnv(key) }
 
 // MapEnv is an in-memory environment source for tests.
 type MapEnv map[string]string
 
-// LookupEnv returns a value from the map environment.
+// LookupEnv returns a value from the map.
 func (m MapEnv) LookupEnv(key string) (string, bool) {
-	value, ok := m[key]
-	return value, ok
+	v, ok := m[key]
+	return v, ok
 }
 
 // Config holds all application configuration values.
@@ -90,6 +86,7 @@ type Config struct {
 
 // PostgresConfig holds PostgreSQL connection configuration.
 type PostgresConfig struct {
+	// URL is derived from the individual fields and must not be set directly.
 	URL string
 
 	Host     string
@@ -108,6 +105,7 @@ type PostgresConfig struct {
 
 // RedisConfig holds Redis connection configuration.
 type RedisConfig struct {
+	// Addr is derived from Host and Port and must not be set directly.
 	Addr string
 
 	Host     string
@@ -122,23 +120,26 @@ type RedisConfig struct {
 	MinIdleConns int
 }
 
-// Load reads .env, then loads configuration from process environment variables.
+// Load reads .env (if present) then loads configuration from the process environment.
 func Load() (Config, error) {
 	_ = godotenv.Load()
 	return LoadWithSource(OSEnv{})
 }
 
 // LoadWithSource loads configuration from the provided environment source.
+// A nil source falls back to the process environment.
 func LoadWithSource(source EnvSource) (Config, error) {
 	if source == nil {
 		source = OSEnv{}
 	}
 
-	if value, ok := lookupTrimmed(source, "POSTGRES_URL"); ok && value != "" {
-		return Config{}, fmt.Errorf("POSTGRES_URL must not be set directly; use POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, and POSTGRES_SSLMODE")
+	// Reject direct overrides of derived fields.
+	if v, ok := lookupTrimmed(source, "POSTGRES_URL"); ok && v != "" {
+		return Config{}, errors.New("POSTGRES_URL must not be set directly; " +
+			"use POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, and POSTGRES_SSLMODE")
 	}
-	if value, ok := lookupTrimmed(source, "REDIS_ADDR"); ok && value != "" {
-		return Config{}, fmt.Errorf("REDIS_ADDR must not be set directly; use REDIS_HOST and REDIS_PORT")
+	if v, ok := lookupTrimmed(source, "REDIS_ADDR"); ok && v != "" {
+		return Config{}, errors.New("REDIS_ADDR must not be set directly; use REDIS_HOST and REDIS_PORT")
 	}
 
 	parsed, err := parseValues(source)
@@ -160,9 +161,9 @@ func LoadWithSource(source EnvSource) (Config, error) {
 		Postgres: PostgresConfig{
 			Host:     stringEnv(source, "POSTGRES_HOST", defaultPostgresHost),
 			Port:     parsed.postgresPort,
-			User:     stringEnv(source, "POSTGRES_USER", defaultPostgresUser),
-			Password: rawEnv(source, "POSTGRES_PASSWORD", defaultPostgresPassword),
-			Database: stringEnv(source, "POSTGRES_DB", defaultPostgresDB),
+			User:     stringEnv(source, "POSTGRES_USER", ""),
+			Password: rawEnv(source, "POSTGRES_PASSWORD", ""),
+			Database: stringEnv(source, "POSTGRES_DB", ""),
 			SSLMode:  stringEnv(source, "POSTGRES_SSLMODE", defaultPostgresSSLMode),
 
 			MaxConns:          parsed.postgresMaxConns,
@@ -190,8 +191,8 @@ func LoadWithSource(source EnvSource) (Config, error) {
 		return Config{}, err
 	}
 
-	cfg.Postgres.URL = postgresURLFromFields(cfg.Postgres)
-	cfg.Redis.Addr = redisAddrFromFields(cfg.Redis)
+	cfg.Postgres.URL = postgresURLFromConfig(cfg.Postgres)
+	cfg.Redis.Addr = redisAddrFromConfig(cfg.Redis)
 
 	return cfg, nil
 }
@@ -215,229 +216,233 @@ type parsedValues struct {
 	redisMinIdleConns int
 }
 
+// parseValues parses all typed environment variables, collecting every error
+// rather than stopping at the first. Callers receive the full set of problems.
 func parseValues(source EnvSource) (parsedValues, error) {
-	var firstErr error
+	var (
+		v    parsedValues
+		errs []error
+		err  error
+	)
 
-	capture := func(err error) {
-		if firstErr == nil && err != nil {
-			firstErr = err
+	collect := func(e error) {
+		if e != nil {
+			errs = append(errs, e)
 		}
 	}
 
-	values := parsedValues{}
+	v.shutdownTimeout, err = durationEnv(source, "SHUTDOWN_TIMEOUT", defaultShutdownTimeout)
+	collect(err)
 
-	var err error
+	v.postgresPort, err = intEnv(source, "POSTGRES_PORT", defaultPostgresPort)
+	collect(err)
 
-	values.shutdownTimeout, err = durationEnv(source, "SHUTDOWN_TIMEOUT", defaultShutdownTimeout)
-	capture(err)
+	v.postgresMaxConns, err = int32Env(source, "POSTGRES_MAX_CONNS", defaultPostgresMaxConns)
+	collect(err)
 
-	values.postgresPort, err = intEnv(source, "POSTGRES_PORT", defaultPostgresPort)
-	capture(err)
+	v.postgresMinConns, err = int32Env(source, "POSTGRES_MIN_CONNS", defaultPostgresMinConns)
+	collect(err)
 
-	values.postgresMaxConns, err = int32Env(source, "POSTGRES_MAX_CONNS", defaultPostgresMaxConns)
-	capture(err)
+	v.postgresMaxConnLifetime, err = durationEnv(source, "POSTGRES_MAX_CONN_LIFETIME", defaultPostgresMaxConnLifetime)
+	collect(err)
 
-	values.postgresMinConns, err = int32Env(source, "POSTGRES_MIN_CONNS", defaultPostgresMinConns)
-	capture(err)
+	v.postgresMaxConnIdleTime, err = durationEnv(source, "POSTGRES_MAX_CONN_IDLE_TIME", defaultPostgresMaxConnIdleTime)
+	collect(err)
 
-	values.postgresMaxConnLifetime, err = durationEnv(source, "POSTGRES_MAX_CONN_LIFETIME", defaultPostgresMaxConnLifetime)
-	capture(err)
+	v.postgresHealthCheckPeriod, err = durationEnv(source, "POSTGRES_HEALTH_CHECK_PERIOD", defaultPostgresHealthCheckPeriod)
+	collect(err)
 
-	values.postgresMaxConnIdleTime, err = durationEnv(source, "POSTGRES_MAX_CONN_IDLE_TIME", defaultPostgresMaxConnIdleTime)
-	capture(err)
+	v.redisPort, err = intEnv(source, "REDIS_PORT", defaultRedisPort)
+	collect(err)
 
-	values.postgresHealthCheckPeriod, err = durationEnv(source, "POSTGRES_HEALTH_CHECK_PERIOD", defaultPostgresHealthCheckPeriod)
-	capture(err)
+	v.redisDB, err = intEnv(source, "REDIS_DB", defaultRedisDB)
+	collect(err)
 
-	values.redisPort, err = intEnv(source, "REDIS_PORT", defaultRedisPort)
-	capture(err)
+	v.redisDialTimeout, err = durationEnv(source, "REDIS_DIAL_TIMEOUT", defaultRedisDialTimeout)
+	collect(err)
 
-	values.redisDB, err = intEnv(source, "REDIS_DB", defaultRedisDB)
-	capture(err)
+	v.redisReadTimeout, err = durationEnv(source, "REDIS_READ_TIMEOUT", defaultRedisReadTimeout)
+	collect(err)
 
-	values.redisDialTimeout, err = durationEnv(source, "REDIS_DIAL_TIMEOUT", defaultRedisDialTimeout)
-	capture(err)
+	v.redisWriteTimeout, err = durationEnv(source, "REDIS_WRITE_TIMEOUT", defaultRedisWriteTimeout)
+	collect(err)
 
-	values.redisReadTimeout, err = durationEnv(source, "REDIS_READ_TIMEOUT", defaultRedisReadTimeout)
-	capture(err)
+	v.redisPoolSize, err = intEnv(source, "REDIS_POOL_SIZE", defaultRedisPoolSize)
+	collect(err)
 
-	values.redisWriteTimeout, err = durationEnv(source, "REDIS_WRITE_TIMEOUT", defaultRedisWriteTimeout)
-	capture(err)
+	v.redisMinIdleConns, err = intEnv(source, "REDIS_MIN_IDLE_CONNS", defaultRedisMinIdleConns)
+	collect(err)
 
-	values.redisPoolSize, err = intEnv(source, "REDIS_POOL_SIZE", defaultRedisPoolSize)
-	capture(err)
-
-	values.redisMinIdleConns, err = intEnv(source, "REDIS_MIN_IDLE_CONNS", defaultRedisMinIdleConns)
-	capture(err)
-
-	if firstErr != nil {
-		return parsedValues{}, firstErr
-	}
-
-	return values, nil
+	return v, errors.Join(errs...)
 }
 
-func postgresURLFromFields(p PostgresConfig) string {
+func postgresURLFromConfig(p PostgresConfig) string {
 	u := url.URL{
 		Scheme: "postgres",
 		User:   url.UserPassword(p.User, p.Password),
 		Host:   net.JoinHostPort(p.Host, strconv.Itoa(p.Port)),
 		Path:   "/" + p.Database,
 	}
-
 	q := u.Query()
 	q.Set("sslmode", p.SSLMode)
 	u.RawQuery = q.Encode()
-
 	return u.String()
 }
 
-func redisAddrFromFields(r RedisConfig) string {
+func redisAddrFromConfig(r RedisConfig) string {
 	return net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
 }
 
+// validate collects all top-level configuration errors so callers see the full
+// picture in a single error rather than discovering problems one at a time.
 func (c Config) validate() error {
+	var errs []error
+
 	if strings.TrimSpace(c.AppName) == "" {
-		return fmt.Errorf("APP_NAME is required")
+		errs = append(errs, errors.New("APP_NAME is required"))
 	}
 	if !oneOf(c.Env, "local", "development", "testing", "staging", "production") {
-		return fmt.Errorf("invalid APP_ENV: %q", c.Env)
+		errs = append(errs, fmt.Errorf("invalid APP_ENV %q: must be one of: local, development, testing, staging, production", c.Env))
 	}
 	if !oneOf(c.LogLevel, "debug", "info", "warn", "error") {
-		return fmt.Errorf("invalid LOG_LEVEL: %q", c.LogLevel)
+		errs = append(errs, fmt.Errorf("invalid LOG_LEVEL %q: must be one of: debug, info, warn, error", c.LogLevel))
 	}
 	if !oneOf(c.LogFormat, "text", "json") {
-		return fmt.Errorf("invalid LOG_FORMAT: %q", c.LogFormat)
+		errs = append(errs, fmt.Errorf("invalid LOG_FORMAT %q: must be one of: text, json", c.LogFormat))
 	}
 	if strings.TrimSpace(c.APIHTTPAddr) == "" {
-		return fmt.Errorf("API_HTTP_ADDR is required")
+		errs = append(errs, errors.New("API_HTTP_ADDR is required"))
 	}
 	if strings.TrimSpace(c.GameENetAddr) == "" {
-		return fmt.Errorf("GAME_ENET_ADDR is required")
+		errs = append(errs, errors.New("GAME_ENET_ADDR is required"))
 	}
 	if strings.TrimSpace(c.GameHTTPAddr) == "" {
-		return fmt.Errorf("GAME_HTTP_ADDR is required")
+		errs = append(errs, errors.New("GAME_HTTP_ADDR is required"))
 	}
 	if c.ShutdownTimeout <= 0 {
-		return fmt.Errorf("SHUTDOWN_TIMEOUT must be > 0, got %s", c.ShutdownTimeout)
-	}
-	if err := c.Postgres.validate(); err != nil {
-		return fmt.Errorf("postgres config: %w", err)
-	}
-	if err := c.Redis.validate(); err != nil {
-		return fmt.Errorf("redis config: %w", err)
+		errs = append(errs, fmt.Errorf("SHUTDOWN_TIMEOUT must be > 0, got %s", c.ShutdownTimeout))
 	}
 
-	return nil
+	if err := c.Postgres.validate(); err != nil {
+		errs = append(errs, fmt.Errorf("postgres: %w", err))
+	}
+	if err := c.Redis.validate(); err != nil {
+		errs = append(errs, fmt.Errorf("redis: %w", err))
+	}
+
+	return errors.Join(errs...)
 }
 
 func (p PostgresConfig) validate() error {
+	var errs []error
+
 	if strings.TrimSpace(p.Host) == "" {
-		return fmt.Errorf("POSTGRES_HOST is required")
+		errs = append(errs, errors.New("POSTGRES_HOST is required"))
 	}
 	if p.Port <= 0 || p.Port > 65535 {
-		return fmt.Errorf("POSTGRES_PORT must be between 1 and 65535, got %d", p.Port)
+		errs = append(errs, fmt.Errorf("POSTGRES_PORT must be between 1 and 65535, got %d", p.Port))
 	}
 	if strings.TrimSpace(p.User) == "" {
-		return fmt.Errorf("POSTGRES_USER is required")
+		errs = append(errs, errors.New("POSTGRES_USER is required"))
 	}
 	if p.Password == "" {
-		return fmt.Errorf("POSTGRES_PASSWORD is required")
+		errs = append(errs, errors.New("POSTGRES_PASSWORD is required"))
 	}
 	if strings.TrimSpace(p.Database) == "" {
-		return fmt.Errorf("POSTGRES_DB is required")
+		errs = append(errs, errors.New("POSTGRES_DB is required"))
 	}
 	if !oneOf(p.SSLMode, "disable", "require", "verify-ca", "verify-full") {
-		return fmt.Errorf("invalid POSTGRES_SSLMODE: %q", p.SSLMode)
+		errs = append(errs, fmt.Errorf("invalid POSTGRES_SSLMODE %q: must be one of: disable, require, verify-ca, verify-full", p.SSLMode))
 	}
 	if p.MaxConns < 1 {
-		return fmt.Errorf("POSTGRES_MAX_CONNS must be >= 1, got %d", p.MaxConns)
+		errs = append(errs, fmt.Errorf("POSTGRES_MAX_CONNS must be >= 1, got %d", p.MaxConns))
 	}
 	if p.MinConns < 0 {
-		return fmt.Errorf("POSTGRES_MIN_CONNS must be >= 0, got %d", p.MinConns)
+		errs = append(errs, fmt.Errorf("POSTGRES_MIN_CONNS must be >= 0, got %d", p.MinConns))
 	}
 	if p.MaxConns < p.MinConns {
-		return fmt.Errorf("POSTGRES_MAX_CONNS (%d) must be >= POSTGRES_MIN_CONNS (%d)", p.MaxConns, p.MinConns)
+		errs = append(errs, fmt.Errorf("POSTGRES_MAX_CONNS (%d) must be >= POSTGRES_MIN_CONNS (%d)", p.MaxConns, p.MinConns))
 	}
 	if p.MaxConnLifetime < 0 {
-		return fmt.Errorf("POSTGRES_MAX_CONN_LIFETIME must be >= 0, got %s", p.MaxConnLifetime)
+		errs = append(errs, fmt.Errorf("POSTGRES_MAX_CONN_LIFETIME must be >= 0, got %s", p.MaxConnLifetime))
 	}
 	if p.MaxConnIdleTime < 0 {
-		return fmt.Errorf("POSTGRES_MAX_CONN_IDLE_TIME must be >= 0, got %s", p.MaxConnIdleTime)
+		errs = append(errs, fmt.Errorf("POSTGRES_MAX_CONN_IDLE_TIME must be >= 0, got %s", p.MaxConnIdleTime))
 	}
 	if p.HealthCheckPeriod <= 0 {
-		return fmt.Errorf("POSTGRES_HEALTH_CHECK_PERIOD must be > 0, got %s", p.HealthCheckPeriod)
+		errs = append(errs, fmt.Errorf("POSTGRES_HEALTH_CHECK_PERIOD must be > 0, got %s", p.HealthCheckPeriod))
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (r RedisConfig) validate() error {
+	var errs []error
+
 	if strings.TrimSpace(r.Host) == "" {
-		return fmt.Errorf("REDIS_HOST is required")
+		errs = append(errs, errors.New("REDIS_HOST is required"))
 	}
 	if r.Port <= 0 || r.Port > 65535 {
-		return fmt.Errorf("REDIS_PORT must be between 1 and 65535, got %d", r.Port)
+		errs = append(errs, fmt.Errorf("REDIS_PORT must be between 1 and 65535, got %d", r.Port))
 	}
 	if r.DB < 0 {
-		return fmt.Errorf("REDIS_DB must be >= 0, got %d", r.DB)
+		errs = append(errs, fmt.Errorf("REDIS_DB must be >= 0, got %d", r.DB))
 	}
 	if r.PoolSize < 1 {
-		return fmt.Errorf("REDIS_POOL_SIZE must be >= 1, got %d", r.PoolSize)
+		errs = append(errs, fmt.Errorf("REDIS_POOL_SIZE must be >= 1, got %d", r.PoolSize))
 	}
 	if r.MinIdleConns < 0 {
-		return fmt.Errorf("REDIS_MIN_IDLE_CONNS must be >= 0, got %d", r.MinIdleConns)
+		errs = append(errs, fmt.Errorf("REDIS_MIN_IDLE_CONNS must be >= 0, got %d", r.MinIdleConns))
 	}
 	if r.MinIdleConns > r.PoolSize {
-		return fmt.Errorf("REDIS_MIN_IDLE_CONNS (%d) must be <= REDIS_POOL_SIZE (%d)", r.MinIdleConns, r.PoolSize)
+		errs = append(errs, fmt.Errorf("REDIS_MIN_IDLE_CONNS (%d) must be <= REDIS_POOL_SIZE (%d)", r.MinIdleConns, r.PoolSize))
 	}
 	if r.DialTimeout <= 0 {
-		return fmt.Errorf("REDIS_DIAL_TIMEOUT must be > 0, got %s", r.DialTimeout)
+		errs = append(errs, fmt.Errorf("REDIS_DIAL_TIMEOUT must be > 0, got %s", r.DialTimeout))
 	}
 	if r.ReadTimeout <= 0 {
-		return fmt.Errorf("REDIS_READ_TIMEOUT must be > 0, got %s", r.ReadTimeout)
+		errs = append(errs, fmt.Errorf("REDIS_READ_TIMEOUT must be > 0, got %s", r.ReadTimeout))
 	}
 	if r.WriteTimeout <= 0 {
-		return fmt.Errorf("REDIS_WRITE_TIMEOUT must be > 0, got %s", r.WriteTimeout)
+		errs = append(errs, fmt.Errorf("REDIS_WRITE_TIMEOUT must be > 0, got %s", r.WriteTimeout))
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
-func stringEnv(source EnvSource, key, def string) string {
-	value, ok := lookupTrimmed(source, key)
-	if ok && value != "" {
-		return value
-	}
+// --- env helpers ---
 
+// stringEnv returns the trimmed value of key, or def if key is absent or blank.
+func stringEnv(source EnvSource, key, def string) string {
+	if v, ok := lookupTrimmed(source, key); ok {
+		return v
+	}
 	return def
 }
 
+// rawEnv returns the raw (untrimmed) value of key, or def if key is absent.
+// Use for secrets such as passwords where whitespace is significant.
 func rawEnv(source EnvSource, key, def string) string {
-	value, ok := source.LookupEnv(key)
-	if ok {
-		return value
+	if v, ok := source.LookupEnv(key); ok {
+		return v
 	}
-
 	return def
 }
 
 func lookupTrimmed(source EnvSource, key string) (string, bool) {
-	value, ok := source.LookupEnv(key)
-	return strings.TrimSpace(value), ok
+	v, ok := source.LookupEnv(key)
+	return strings.TrimSpace(v), ok
 }
 
 func intEnv(source EnvSource, key string, def int) (int, error) {
-	value, ok := lookupTrimmed(source, key)
-	if !ok || value == "" {
+	v, ok := lookupTrimmed(source, key)
+	if !ok || v == "" {
 		return def, nil
 	}
-
-	n, err := strconv.Atoi(value)
+	n, err := strconv.Atoi(v)
 	if err != nil {
 		return 0, fmt.Errorf("%s must be an integer: %w", key, err)
 	}
-
 	return n, nil
 }
 
@@ -449,30 +454,26 @@ func int32Env(source EnvSource, key string, def int32) (int32, error) {
 	if n < math.MinInt32 || n > math.MaxInt32 {
 		return 0, fmt.Errorf("%s must fit in int32, got %d", key, n)
 	}
-
 	return int32(n), nil
 }
 
 func durationEnv(source EnvSource, key string, def time.Duration) (time.Duration, error) {
-	value, ok := lookupTrimmed(source, key)
-	if !ok || value == "" {
+	v, ok := lookupTrimmed(source, key)
+	if !ok || v == "" {
 		return def, nil
 	}
-
-	duration, err := time.ParseDuration(value)
+	d, err := time.ParseDuration(v)
 	if err != nil {
-		return 0, fmt.Errorf("%s must be a duration: %w", key, err)
+		return 0, fmt.Errorf("%s must be a valid Go duration (e.g. 10s, 1m): %w", key, err)
 	}
-
-	return duration, nil
+	return d, nil
 }
 
 func oneOf(value string, allowed ...string) bool {
-	for _, candidate := range allowed {
-		if value == candidate {
+	for _, a := range allowed {
+		if value == a {
 			return true
 		}
 	}
-
 	return false
 }

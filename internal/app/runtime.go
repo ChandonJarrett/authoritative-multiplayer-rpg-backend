@@ -15,25 +15,25 @@ import (
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/logger"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	goredis "github.com/redis/go-redis/v9"
 )
 
 // ConfigLoader loads application configuration.
 type ConfigLoader func() (config.Config, error)
 
-// LoggerFactory creates a service logger from configuration.
+// LoggerFactory creates a structured logger for a named service.
 type LoggerFactory func(cfg config.Config, serviceName string) *slog.Logger
 
 // PostgresFactory creates a PostgreSQL connection pool.
 type PostgresFactory func(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.Pool, error)
 
 // RedisFactory creates a Redis client.
-type RedisFactory func(ctx context.Context, cfg config.RedisConfig) (*goredis.Client, error)
+type RedisFactory func(ctx context.Context, cfg config.RedisConfig) (cache.Client, error)
 
-// ContextFactory creates the root runtime context and its stop function.
+// ContextFactory creates the root context and its cancellation function.
 type ContextFactory func() (context.Context, context.CancelFunc)
 
-// RuntimeDeps contains injectable runtime dependencies.
+// RuntimeDeps contains injectable dependencies for NewRuntimeWithDeps.
+// All fields are optional; nil entries are replaced with production defaults.
 type RuntimeDeps struct {
 	LoadConfig  ConfigLoader
 	NewLogger   LoggerFactory
@@ -42,7 +42,7 @@ type RuntimeDeps struct {
 	NewContext  ContextFactory
 }
 
-// Runtime contains shared service dependencies.
+// Runtime holds shared dependencies available to both the API and game servers.
 type Runtime struct {
 	Config config.Config
 	Log    *slog.Logger
@@ -51,22 +51,22 @@ type Runtime struct {
 	Stop    context.CancelFunc
 
 	Postgres *pgxpool.Pool
-	Redis    *goredis.Client
+	Redis    cache.Client
 }
 
-// NewRuntime loads config, initializes logging, connects to PostgreSQL and Redis,
-// and returns a shared service runtime.
+// NewRuntime initializes the shared runtime with production defaults.
 func NewRuntime(serviceName string) (*Runtime, error) {
 	return NewRuntimeWithDeps(serviceName, RuntimeDeps{})
 }
 
-// NewRuntimeWithDeps creates a Runtime using injectable dependencies.
+// NewRuntimeWithDeps initializes the runtime using injectable dependencies.
+// On any failure, previously acquired resources are released before returning.
 func NewRuntimeWithDeps(serviceName string, deps RuntimeDeps) (*Runtime, error) {
-	deps = withRuntimeDefaults(deps)
+	deps = withDefaults(deps)
 
 	cfg, err := deps.LoadConfig()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load config: %w", err)
 	}
 
 	log := deps.NewLogger(cfg, serviceName)
@@ -85,7 +85,7 @@ func NewRuntimeWithDeps(serviceName string, deps RuntimeDeps) (*Runtime, error) 
 		return nil, fmt.Errorf("connect redis: %w", err)
 	}
 
-	log.Info("runtime initialized")
+	log.Info("runtime initialized", "service", serviceName, "env", cfg.Env)
 
 	return &Runtime{
 		Config:   cfg,
@@ -97,7 +97,7 @@ func NewRuntimeWithDeps(serviceName string, deps RuntimeDeps) (*Runtime, error) 
 	}, nil
 }
 
-// Close releases runtime resources.
+// Close releases runtime resources in reverse initialization order (redis, postgres, context).
 func (r *Runtime) Close() {
 	if r == nil {
 		return
@@ -116,35 +116,36 @@ func (r *Runtime) Close() {
 	}
 }
 
-// Fatal logs an error and exits.
+// Fatal logs a startup failure and terminates the process.
+// It uses the global slog logger, which is set during runtime initialization.
 func Fatal(msg string, err error) {
 	slog.Error(msg, "error", err)
 	exit(1)
 }
 
+// exit is the process exit function. Replaced in internal tests to prevent actual process termination.
 var exit = os.Exit
 
-func withRuntimeDefaults(deps RuntimeDeps) RuntimeDeps {
+func withDefaults(deps RuntimeDeps) RuntimeDeps {
 	if deps.LoadConfig == nil {
 		deps.LoadConfig = config.Load
 	}
 	if deps.NewLogger == nil {
-		deps.NewLogger = defaultLoggerFactory
+		deps.NewLogger = defaultLogger
 	}
 	if deps.NewPostgres == nil {
 		deps.NewPostgres = db.NewPool
 	}
 	if deps.NewRedis == nil {
-		deps.NewRedis = cache.NewClient
+		deps.NewRedis = newRedisClient
 	}
 	if deps.NewContext == nil {
 		deps.NewContext = signalContext
 	}
-
 	return deps
 }
 
-func defaultLoggerFactory(cfg config.Config, serviceName string) *slog.Logger {
+func defaultLogger(cfg config.Config, serviceName string) *slog.Logger {
 	return logger.New(logger.Options{
 		Level:      cfg.LogLevel,
 		Format:     cfg.LogFormat,
@@ -152,6 +153,11 @@ func defaultLoggerFactory(cfg config.Config, serviceName string) *slog.Logger {
 		SetDefault: true,
 		Attrs:      []any{"service", serviceName},
 	})
+}
+
+// newRedisClient is the production RedisFactory.
+func newRedisClient(ctx context.Context, cfg config.RedisConfig) (cache.Client, error) {
+	return cache.NewClient(ctx, cfg)
 }
 
 func signalContext() (context.Context, context.CancelFunc) {
