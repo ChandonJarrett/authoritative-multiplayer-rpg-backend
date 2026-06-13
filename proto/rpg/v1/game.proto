@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package rpg.v1;
+
+option go_package = "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1;rpgv1";
+
+// Channel convention (see ADR 002):
+// channel 0 (reliable):   JoinRequest, JoinResponse
+// channel 1 (unreliable): InputPacket (client->server), SnapshotPacket (server->client)
+
+// --- Handshake (reliable channel 0) ---
+
+// JoinRequest is the first packet a client sends after connecting via ENet. The join_token is issued by the API server (IssueJoinToken RPC) and is short-lived and single-use.
+message JoinRequest {
+  string join_token    = 1;
+  string character_id  = 2;
+}
+
+// JoinResponse is sent by the game server in response to JoinRequest.
+message JoinResponse {
+  bool   ok     = 1;
+  // reason is populated on failure and empty on success.
+  string reason = 2;
+}

@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install OS dependencies
+        run: sudo bash scripts/install-apt-deps.sh
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      
+      - name: Cache Go tool binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin
+          key: ${{ runner.os }}-go-tools-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-tools-
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Install Go tools
+        run: make tools-go
+      
+      - name: Validate compose config
+        run: make compose-check
+
+      - name: Run quality checks
+        run: make ci-fast && make vuln && make proto-check
+
+      - name: Check for breaking proto changes
+        run: make proto-breaking
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    env:
+      APP_NAME: rpg-backend
+      APP_ENV: testing
+      LOG_LEVEL: info
+      LOG_FORMAT: text
+      API_HTTP_ADDR: ":8080"
+      GAME_ENET_ADDR: ":7777"
+      GAME_HTTP_ADDR: ":8081"
+      SHUTDOWN_TIMEOUT: "10s"
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rpg
+      POSTGRES_SSLMODE: disable
+      POSTGRES_MAX_CONNS: "10"
+      POSTGRES_MIN_CONNS: "1"
+      POSTGRES_MAX_CONN_LIFETIME: "1h"
+      POSTGRES_MAX_CONN_IDLE_TIME: "30m"
+      POSTGRES_HEALTH_CHECK_PERIOD: "1m"
+      REDIS_HOST: localhost
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+      REDIS_DB: "0"
+      REDIS_DIAL_TIMEOUT: "5s"
+      REDIS_READ_TIMEOUT: "3s"
+      REDIS_WRITE_TIMEOUT: "3s"
+      REDIS_POOL_SIZE: "10"
+      REDIS_MIN_IDLE_CONNS: "1"
+
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rpg
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rpg"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      redis:
+        image: redis:8.8.0
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install OS dependencies
+        run: sudo bash scripts/install-apt-deps.sh
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      
+      - name: Cache Go tool binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin
+          key: ${{ runner.os }}-go-tools-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-tools-
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Install migration tool
+        run: make tools-migrate
+
+      - name: Run migrations
+        run: make migrate-up
+
+      - name: Run all tests
+        run: make test-race && make test-integration
+
