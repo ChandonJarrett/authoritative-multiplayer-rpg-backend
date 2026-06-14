@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/app"
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/app/api"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/cache"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/db"
 )
