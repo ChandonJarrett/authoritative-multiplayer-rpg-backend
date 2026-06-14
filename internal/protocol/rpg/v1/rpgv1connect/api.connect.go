@@ -22,6 +22,8 @@ import (
 const _ = connect.IsAtLeastVersion1_13_0
 
 const (
+	// SystemServiceName is the fully-qualified name of the SystemService service.
+	SystemServiceName = "rpg.v1.SystemService"
 	// AuthServiceName is the fully-qualified name of the AuthService service.
 	AuthServiceName = "rpg.v1.AuthService"
 	// CharacterServiceName is the fully-qualified name of the CharacterService service.
@@ -38,6 +40,8 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// SystemServicePingProcedure is the fully-qualified name of the SystemService's Ping RPC.
+	SystemServicePingProcedure = "/rpg.v1.SystemService/Ping"
 	// AuthServiceRegisterProcedure is the fully-qualified name of the AuthService's Register RPC.
 	AuthServiceRegisterProcedure = "/rpg.v1.AuthService/Register"
 	// AuthServiceLoginProcedure is the fully-qualified name of the AuthService's Login RPC.
@@ -52,6 +56,76 @@ const (
 	// IssueJoinToken RPC.
 	GameServiceIssueJoinTokenProcedure = "/rpg.v1.GameService/IssueJoinToken"
 )
+
+// SystemServiceClient is a client for the rpg.v1.SystemService service.
+type SystemServiceClient interface {
+	Ping(context.Context, *connect.Request[v1.PingRequest]) (*connect.Response[v1.PingResponse], error)
+}
+
+// NewSystemServiceClient constructs a client for the rpg.v1.SystemService service. By default, it
+// uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewSystemServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) SystemServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	systemServiceMethods := v1.File_rpg_v1_api_proto.Services().ByName("SystemService").Methods()
+	return &systemServiceClient{
+		ping: connect.NewClient[v1.PingRequest, v1.PingResponse](
+			httpClient,
+			baseURL+SystemServicePingProcedure,
+			connect.WithSchema(systemServiceMethods.ByName("Ping")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// systemServiceClient implements SystemServiceClient.
+type systemServiceClient struct {
+	ping *connect.Client[v1.PingRequest, v1.PingResponse]
+}
+
+// Ping calls rpg.v1.SystemService.Ping.
+func (c *systemServiceClient) Ping(ctx context.Context, req *connect.Request[v1.PingRequest]) (*connect.Response[v1.PingResponse], error) {
+	return c.ping.CallUnary(ctx, req)
+}
+
+// SystemServiceHandler is an implementation of the rpg.v1.SystemService service.
+type SystemServiceHandler interface {
+	Ping(context.Context, *connect.Request[v1.PingRequest]) (*connect.Response[v1.PingResponse], error)
+}
+
+// NewSystemServiceHandler builds an HTTP handler from the service implementation. It returns the
+// path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	systemServiceMethods := v1.File_rpg_v1_api_proto.Services().ByName("SystemService").Methods()
+	systemServicePingHandler := connect.NewUnaryHandler(
+		SystemServicePingProcedure,
+		svc.Ping,
+		connect.WithSchema(systemServiceMethods.ByName("Ping")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/rpg.v1.SystemService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case SystemServicePingProcedure:
+			systemServicePingHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedSystemServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedSystemServiceHandler struct{}
+
+func (UnimplementedSystemServiceHandler) Ping(context.Context, *connect.Request[v1.PingRequest]) (*connect.Response[v1.PingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rpg.v1.SystemService.Ping is not implemented"))
+}
 
 // AuthServiceClient is a client for the rpg.v1.AuthService service.
 type AuthServiceClient interface {

@@ -6,6 +6,21 @@ import "rpg/v1/common.proto";
 
 option go_package = "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1;rpgv1";
 
+// --- System ---
+
+// SystemService exposes basic connectivity and health-style RPCs for clients.
+service SystemService {
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+message PingRequest {}
+
+message PingResponse {
+  string service = 1;
+  string message = 2;
+  string server_time = 3;
+}
+
 // --- Auth ---
 
 // AuthService handles registration and login.
@@ -22,6 +37,7 @@ message RegisterRequest {
 
 message RegisterResponse {
   string user_id = 1;
+  string session_token = 2;
 }
 
 message LoginRequest {
@@ -30,8 +46,8 @@ message LoginRequest {
 }
 
 message LoginResponse {
-  // Opaque session token; pass as "Authorization: Bearer <token>".
-  string session_token = 1;
+  string user_id = 1;
+  string session_token = 2;
 }
 
 // --- Characters ---
@@ -75,4 +91,7 @@ message IssueJoinTokenRequest {
 
 message IssueJoinTokenResponse {
   string join_token = 1;
+  string game_server_id = 2;
+  string game_server_addr = 3;
+  int64 expires_in_seconds = 4;
 }

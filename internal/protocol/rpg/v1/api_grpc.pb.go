@@ -20,6 +20,110 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	SystemService_Ping_FullMethodName = "/rpg.v1.SystemService/Ping"
+)
+
+// SystemServiceClient is the client API for SystemService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// SystemService exposes basic connectivity and health-style RPCs for clients.
+type SystemServiceClient interface {
+	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
+}
+
+type systemServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewSystemServiceClient(cc grpc.ClientConnInterface) SystemServiceClient {
+	return &systemServiceClient{cc}
+}
+
+func (c *systemServiceClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PingResponse)
+	err := c.cc.Invoke(ctx, SystemService_Ping_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// SystemServiceServer is the server API for SystemService service.
+// All implementations should embed UnimplementedSystemServiceServer
+// for forward compatibility.
+//
+// SystemService exposes basic connectivity and health-style RPCs for clients.
+type SystemServiceServer interface {
+	Ping(context.Context, *PingRequest) (*PingResponse, error)
+}
+
+// UnimplementedSystemServiceServer should be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedSystemServiceServer struct{}
+
+func (UnimplementedSystemServiceServer) Ping(context.Context, *PingRequest) (*PingResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Ping not implemented")
+}
+func (UnimplementedSystemServiceServer) testEmbeddedByValue() {}
+
+// UnsafeSystemServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to SystemServiceServer will
+// result in compilation errors.
+type UnsafeSystemServiceServer interface {
+	mustEmbedUnimplementedSystemServiceServer()
+}
+
+func RegisterSystemServiceServer(s grpc.ServiceRegistrar, srv SystemServiceServer) {
+	// If the following call panics, it indicates UnimplementedSystemServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&SystemService_ServiceDesc, srv)
+}
+
+func _SystemService_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SystemServiceServer).Ping(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SystemService_Ping_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SystemServiceServer).Ping(ctx, req.(*PingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// SystemService_ServiceDesc is the grpc.ServiceDesc for SystemService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var SystemService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "rpg.v1.SystemService",
+	HandlerType: (*SystemServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Ping",
+			Handler:    _SystemService_Ping_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "rpg/v1/api.proto",
+}
+
+const (
 	AuthService_Register_FullMethodName = "/rpg.v1.AuthService/Register"
 	AuthService_Login_FullMethodName    = "/rpg.v1.AuthService/Login"
 )
