@@ -28,7 +28,8 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// AuthService handles registration and login. Session tokens issued here are passed as Bearer tokens on subsequent RPCs.
+// AuthService handles registration and login.
+// Session tokens issued here are passed as Bearer tokens on subsequent RPCs.
 type AuthServiceClient interface {
 	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error)
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
@@ -66,7 +67,8 @@ func (c *authServiceClient) Login(ctx context.Context, in *LoginRequest, opts ..
 // All implementations should embed UnimplementedAuthServiceServer
 // for forward compatibility.
 //
-// AuthService handles registration and login. Session tokens issued here are passed as Bearer tokens on subsequent RPCs.
+// AuthService handles registration and login.
+// Session tokens issued here are passed as Bearer tokens on subsequent RPCs.
 type AuthServiceServer interface {
 	Register(context.Context, *RegisterRequest) (*RegisterResponse, error)
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
@@ -155,6 +157,248 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Login",
 			Handler:    _AuthService_Login_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "rpg/v1/api.proto",
+}
+
+const (
+	CharacterService_CreateCharacter_FullMethodName = "/rpg.v1.CharacterService/CreateCharacter"
+	CharacterService_ListCharacters_FullMethodName  = "/rpg.v1.CharacterService/ListCharacters"
+)
+
+// CharacterServiceClient is the client API for CharacterService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type CharacterServiceClient interface {
+	CreateCharacter(ctx context.Context, in *CreateCharacterRequest, opts ...grpc.CallOption) (*CreateCharacterResponse, error)
+	ListCharacters(ctx context.Context, in *ListCharactersRequest, opts ...grpc.CallOption) (*ListCharactersResponse, error)
+}
+
+type characterServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewCharacterServiceClient(cc grpc.ClientConnInterface) CharacterServiceClient {
+	return &characterServiceClient{cc}
+}
+
+func (c *characterServiceClient) CreateCharacter(ctx context.Context, in *CreateCharacterRequest, opts ...grpc.CallOption) (*CreateCharacterResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateCharacterResponse)
+	err := c.cc.Invoke(ctx, CharacterService_CreateCharacter_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *characterServiceClient) ListCharacters(ctx context.Context, in *ListCharactersRequest, opts ...grpc.CallOption) (*ListCharactersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListCharactersResponse)
+	err := c.cc.Invoke(ctx, CharacterService_ListCharacters_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// CharacterServiceServer is the server API for CharacterService service.
+// All implementations should embed UnimplementedCharacterServiceServer
+// for forward compatibility.
+type CharacterServiceServer interface {
+	CreateCharacter(context.Context, *CreateCharacterRequest) (*CreateCharacterResponse, error)
+	ListCharacters(context.Context, *ListCharactersRequest) (*ListCharactersResponse, error)
+}
+
+// UnimplementedCharacterServiceServer should be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedCharacterServiceServer struct{}
+
+func (UnimplementedCharacterServiceServer) CreateCharacter(context.Context, *CreateCharacterRequest) (*CreateCharacterResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateCharacter not implemented")
+}
+func (UnimplementedCharacterServiceServer) ListCharacters(context.Context, *ListCharactersRequest) (*ListCharactersResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListCharacters not implemented")
+}
+func (UnimplementedCharacterServiceServer) testEmbeddedByValue() {}
+
+// UnsafeCharacterServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to CharacterServiceServer will
+// result in compilation errors.
+type UnsafeCharacterServiceServer interface {
+	mustEmbedUnimplementedCharacterServiceServer()
+}
+
+func RegisterCharacterServiceServer(s grpc.ServiceRegistrar, srv CharacterServiceServer) {
+	// If the following call panics, it indicates UnimplementedCharacterServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&CharacterService_ServiceDesc, srv)
+}
+
+func _CharacterService_CreateCharacter_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateCharacterRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CharacterServiceServer).CreateCharacter(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CharacterService_CreateCharacter_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CharacterServiceServer).CreateCharacter(ctx, req.(*CreateCharacterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CharacterService_ListCharacters_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListCharactersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CharacterServiceServer).ListCharacters(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CharacterService_ListCharacters_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CharacterServiceServer).ListCharacters(ctx, req.(*ListCharactersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// CharacterService_ServiceDesc is the grpc.ServiceDesc for CharacterService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var CharacterService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "rpg.v1.CharacterService",
+	HandlerType: (*CharacterServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CreateCharacter",
+			Handler:    _CharacterService_CreateCharacter_Handler,
+		},
+		{
+			MethodName: "ListCharacters",
+			Handler:    _CharacterService_ListCharacters_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "rpg/v1/api.proto",
+}
+
+const (
+	GameService_IssueJoinToken_FullMethodName = "/rpg.v1.GameService/IssueJoinToken"
+)
+
+// GameServiceClient is the client API for GameService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// GameService issues the short-lived join token a client presents to the game server.
+type GameServiceClient interface {
+	IssueJoinToken(ctx context.Context, in *IssueJoinTokenRequest, opts ...grpc.CallOption) (*IssueJoinTokenResponse, error)
+}
+
+type gameServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewGameServiceClient(cc grpc.ClientConnInterface) GameServiceClient {
+	return &gameServiceClient{cc}
+}
+
+func (c *gameServiceClient) IssueJoinToken(ctx context.Context, in *IssueJoinTokenRequest, opts ...grpc.CallOption) (*IssueJoinTokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IssueJoinTokenResponse)
+	err := c.cc.Invoke(ctx, GameService_IssueJoinToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// GameServiceServer is the server API for GameService service.
+// All implementations should embed UnimplementedGameServiceServer
+// for forward compatibility.
+//
+// GameService issues the short-lived join token a client presents to the game server.
+type GameServiceServer interface {
+	IssueJoinToken(context.Context, *IssueJoinTokenRequest) (*IssueJoinTokenResponse, error)
+}
+
+// UnimplementedGameServiceServer should be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedGameServiceServer struct{}
+
+func (UnimplementedGameServiceServer) IssueJoinToken(context.Context, *IssueJoinTokenRequest) (*IssueJoinTokenResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method IssueJoinToken not implemented")
+}
+func (UnimplementedGameServiceServer) testEmbeddedByValue() {}
+
+// UnsafeGameServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to GameServiceServer will
+// result in compilation errors.
+type UnsafeGameServiceServer interface {
+	mustEmbedUnimplementedGameServiceServer()
+}
+
+func RegisterGameServiceServer(s grpc.ServiceRegistrar, srv GameServiceServer) {
+	// If the following call panics, it indicates UnimplementedGameServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&GameService_ServiceDesc, srv)
+}
+
+func _GameService_IssueJoinToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IssueJoinTokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GameServiceServer).IssueJoinToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GameService_IssueJoinToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GameServiceServer).IssueJoinToken(ctx, req.(*IssueJoinTokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// GameService_ServiceDesc is the grpc.ServiceDesc for GameService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var GameService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "rpg.v1.GameService",
+	HandlerType: (*GameServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "IssueJoinToken",
+			Handler:    _GameService_IssueJoinToken_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
