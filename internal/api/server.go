@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	rpgv1connect "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1/rpgv1connect"
 )
 
@@ -18,12 +19,14 @@ type ReadyCheck func(ctx context.Context) error
 
 // Options configures the API HTTP server.
 type Options struct {
-	Addr            string
-	Log             *slog.Logger
-	ShutdownTimeout time.Duration
-	AllowedOrigins  []string
-	ReadyCheck      ReadyCheck
-	SystemHandler   rpgv1connect.SystemServiceHandler
+	Addr              string
+	Log               *slog.Logger
+	ShutdownTimeout   time.Duration
+	AllowedOrigins    []string
+	ReadyCheck        ReadyCheck
+	SystemHandler     rpgv1connect.SystemServiceHandler
+	AuthHandler       rpgv1connect.AuthServiceHandler
+	UnaryInterceptors []connect.Interceptor
 }
 
 // Server owns the API HTTP server lifecycle.
@@ -70,8 +73,18 @@ func NewServer(opts Options) (*Server, error) {
 	mux.HandleFunc("/healthz", healthHandler)
 	mux.HandleFunc("/readyz", readyHandler(opts.ReadyCheck))
 
-	systemPath, systemHTTPHandler := rpgv1connect.NewSystemServiceHandler(systemHandler)
+	connectOptions := make([]connect.HandlerOption, 0, len(opts.UnaryInterceptors))
+	for _, interceptor := range opts.UnaryInterceptors {
+		connectOptions = append(connectOptions, connect.WithInterceptors(interceptor))
+	}
+
+	systemPath, systemHTTPHandler := rpgv1connect.NewSystemServiceHandler(systemHandler, connectOptions...)
 	mux.Handle(systemPath, systemHTTPHandler)
+
+	if opts.AuthHandler != nil {
+		authPath, authHTTPHandler := rpgv1connect.NewAuthServiceHandler(opts.AuthHandler, connectOptions...)
+		mux.Handle(authPath, authHTTPHandler)
+	}
 
 	handler := withCORS(mux, allowedOrigins)
 

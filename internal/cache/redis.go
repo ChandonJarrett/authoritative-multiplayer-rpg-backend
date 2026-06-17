@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/config"
 
@@ -22,6 +23,12 @@ type Client interface {
 	Ping(ctx context.Context) *goredis.StatusCmd
 	Close() error
 	PoolStats() *goredis.PoolStats
+
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *goredis.StatusCmd
+	Get(ctx context.Context, key string) *goredis.StringCmd
+	SAdd(ctx context.Context, key string, members ...interface{}) *goredis.IntCmd
+	Expire(ctx context.Context, key string, expiration time.Duration) *goredis.BoolCmd
+	Del(ctx context.Context, keys ...string) *goredis.IntCmd
 }
 
 // NewClient creates and validates a Redis client from configuration.

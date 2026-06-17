@@ -5,10 +5,13 @@ import (
 	"context"
 	"fmt"
 
+	"connectrpc.com/connect"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/app"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/cache"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/db"
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/service"
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store"
 )
 
 func main() {
@@ -30,6 +33,15 @@ func main() {
 		return nil
 	}
 
+	keys, err := cache.NewKeyBuilderFromConfig(rt.Config)
+	if err != nil {
+		app.Fatal("failed to create cache key builder", err)
+	}
+
+	userStore := store.NewPostgresUserStore(rt.Postgres)
+	sessionStore := store.NewRedisSessionStore(rt.Redis, keys)
+	authService := service.NewAuthService(userStore, sessionStore)
+
 	server, err := api.NewServer(api.Options{
 		Addr:            rt.Config.APIHTTPAddr,
 		Log:             rt.Log,
@@ -41,6 +53,10 @@ func main() {
 			"http://localhost:5173",
 			"http://127.0.0.1:3000",
 			"http://127.0.0.1:5173",
+		},
+		AuthHandler: api.NewAuthHandler(authService),
+		UnaryInterceptors: []connect.Interceptor{
+			api.NewAuthInterceptor(sessionStore),
 		},
 	})
 	if err != nil {

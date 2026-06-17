@@ -12,12 +12,12 @@ import (
 
 // RedisSessionStore implements SessionStore using Redis for storage.
 type RedisSessionStore struct {
-	client RedisCommander
+	client cache.Client
 	keys   cache.KeyBuilder
 }
 
 // NewRedisSessionStore creates a new RedisSessionStore with the given Redis client and key builder.
-func NewRedisSessionStore(client RedisCommander, keys cache.KeyBuilder) *RedisSessionStore {
+func NewRedisSessionStore(client cache.Client, keys cache.KeyBuilder) *RedisSessionStore {
 	return &RedisSessionStore{
 		client: client,
 		keys:   keys,
