@@ -105,10 +105,13 @@ func file_rpg_v1_common_proto_rawDescGZIP() []byte {
 	return file_rpg_v1_common_proto_rawDescData
 }
 
-var file_rpg_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_rpg_v1_common_proto_goTypes = []any{
-	(*Vec3)(nil), // 0: rpg.v1.Vec3
-}
+var (
+	file_rpg_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+	file_rpg_v1_common_proto_goTypes  = []any{
+		(*Vec3)(nil), // 0: rpg.v1.Vec3
+	}
+)
+
 var file_rpg_v1_common_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type

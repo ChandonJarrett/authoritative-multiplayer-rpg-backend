@@ -186,14 +186,14 @@ tidy-check:
 
 fmt:
 	@if [ -n "$(GO_FILES)" ]; then \
-		gofmt -w $(GO_FILES); \
+		go tool gofumpt -w $(GO_FILES); \
 		go tool goimports -w $(GO_FILES); \
 	fi
 
 fmt-check:
-	@files="$$(gofmt -l $(GO_FILES))"; \
+	@files="$$(go tool gofumpt -l $(GO_FILES))"; \
 	if [ -n "$$files" ]; then \
-		echo "Go files need gofmt:"; \
+		echo "Go files need gofumpt:"; \
 		echo "$$files"; \
 		exit 1; \
 	fi

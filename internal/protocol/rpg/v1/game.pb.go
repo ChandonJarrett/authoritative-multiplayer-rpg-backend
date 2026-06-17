@@ -154,11 +154,14 @@ func file_rpg_v1_game_proto_rawDescGZIP() []byte {
 	return file_rpg_v1_game_proto_rawDescData
 }
 
-var file_rpg_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_rpg_v1_game_proto_goTypes = []any{
-	(*JoinRequest)(nil),  // 0: rpg.v1.JoinRequest
-	(*JoinResponse)(nil), // 1: rpg.v1.JoinResponse
-}
+var (
+	file_rpg_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+	file_rpg_v1_game_proto_goTypes  = []any{
+		(*JoinRequest)(nil),  // 0: rpg.v1.JoinRequest
+		(*JoinResponse)(nil), // 1: rpg.v1.JoinResponse
+	}
+)
+
 var file_rpg_v1_game_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type

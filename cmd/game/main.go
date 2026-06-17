@@ -10,7 +10,8 @@ func main() {
 	}
 	defer rt.Close()
 
-	rt.Log.Info("game server ready",
+	rt.Log.Info(
+		"game server ready",
 		"enet_addr", rt.Config.GameENetAddr,
 		"http_addr", rt.Config.GameHTTPAddr,
 	)

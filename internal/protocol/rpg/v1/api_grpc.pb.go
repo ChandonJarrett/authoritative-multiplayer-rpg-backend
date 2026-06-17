@@ -188,6 +188,7 @@ type UnimplementedAuthServiceServer struct{}
 func (UnimplementedAuthServiceServer) Register(context.Context, *RegisterRequest) (*RegisterResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Register not implemented")
 }
+
 func (UnimplementedAuthServiceServer) Login(context.Context, *LoginRequest) (*LoginResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Login not implemented")
 }
@@ -326,6 +327,7 @@ type UnimplementedCharacterServiceServer struct{}
 func (UnimplementedCharacterServiceServer) CreateCharacter(context.Context, *CreateCharacterRequest) (*CreateCharacterResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateCharacter not implemented")
 }
+
 func (UnimplementedCharacterServiceServer) ListCharacters(context.Context, *ListCharactersRequest) (*ListCharactersResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListCharacters not implemented")
 }
