@@ -42,6 +42,9 @@ func main() {
 	sessionStore := store.NewRedisSessionStore(rt.Redis, keys)
 	authService := service.NewAuthService(userStore, sessionStore)
 
+	characterStore := store.NewPostgresCharacterStore(rt.Postgres)
+	characterService := service.NewCharacterService(characterStore)
+
 	server, err := api.NewServer(api.Options{
 		Addr:            rt.Config.APIHTTPAddr,
 		Log:             rt.Log,
@@ -58,6 +61,7 @@ func main() {
 		UnaryInterceptors: []connect.Interceptor{
 			api.NewAuthInterceptor(sessionStore),
 		},
+		CharacterHandler: api.NewCharacterHandler(characterService),
 	})
 	if err != nil {
 		app.Fatal("failed to create api server", err)

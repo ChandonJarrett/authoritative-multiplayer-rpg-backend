@@ -27,6 +27,7 @@ type Options struct {
 	SystemHandler     rpgv1connect.SystemServiceHandler
 	AuthHandler       rpgv1connect.AuthServiceHandler
 	UnaryInterceptors []connect.Interceptor
+	CharacterHandler  rpgv1connect.CharacterServiceHandler
 }
 
 // Server owns the API HTTP server lifecycle.
@@ -84,6 +85,11 @@ func NewServer(opts Options) (*Server, error) {
 	if opts.AuthHandler != nil {
 		authPath, authHTTPHandler := rpgv1connect.NewAuthServiceHandler(opts.AuthHandler, connectOptions...)
 		mux.Handle(authPath, authHTTPHandler)
+	}
+
+	if opts.CharacterHandler != nil {
+		characterPath, characterHTTPHandler := rpgv1connect.NewCharacterServiceHandler(opts.CharacterHandler, connectOptions...)
+		mux.Handle(characterPath, characterHTTPHandler)
 	}
 
 	handler := withCORS(mux, allowedOrigins)
