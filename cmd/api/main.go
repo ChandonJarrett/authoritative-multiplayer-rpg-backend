@@ -58,6 +58,7 @@ func main() {
 		AllowedOrigins:  rt.Config.APIAllowedOrigins,
 		AuthHandler:     api.NewAuthHandler(authService),
 		UnaryInterceptors: []connect.Interceptor{
+			api.NewRPCLoggingInterceptor(rt.Log),
 			api.NewAuthInterceptor(sessionStore),
 		},
 		CharacterHandler: api.NewCharacterHandler(characterService),
