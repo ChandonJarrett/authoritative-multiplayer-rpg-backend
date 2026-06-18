@@ -154,6 +154,7 @@ func (s *Server) Run(ctx context.Context) error {
 		defer cancel()
 
 		if err := s.httpServer.Shutdown(shutdownCtx); err != nil {
+			_ = s.httpServer.Close()
 			return fmt.Errorf("shutdown api http server: %w", err)
 		}
 
