@@ -99,25 +99,39 @@ Run `make help` for the complete list.
 ## Current status
 
 **Implemented:**
+
 - Runtime bootstrap: config loading, logger, PostgreSQL pool, Redis client
 - Configuration validation with environment variable defaults
-- Redis key builder (`internal/cache`)
-- Database transaction helpers (`internal/db`)
-- Migrations: `users`, `characters` tables with triggers and indexes
-- Protobuf definitions (`api.proto`, `game.proto`, `common.proto`) and code generation
+- Redis key builder and TTL constants
+- Database transaction helpers
+- Migrations: users and characters tables with triggers and indexes
+- Protobuf definitions and generated Go code
 - Docker Compose local environment
 - Devcontainer
 - CI quality and test pipeline
+- ConnectRPC API server lifecycle
+- Health and readiness endpoints
+- CORS handling
+- System ping RPC
+- Auth register/login RPC handlers
+- Auth interceptor using Redis-backed bearer sessions
+- Auth service with password hashing and opaque session tokens
+- Character create/list RPC handlers
+- Character service and PostgreSQL store
+- Game handoff API for join-token issuance
+- Redis session, join-token, and game-server store foundations
+- Unit and integration tests for core foundation pieces
 
-**Not yet implemented:**
-- ConnectRPC API handlers
-- Authentication and session logic
-- Character business logic
-- Redis session store and join-token issuance
-- ENet game server host
-- Game simulation loop (target: 64Hz)
-- World snapshot broadcast loop (target: 32Hz)
-- Production deployment configuration
+**Not yet implemented or incomplete:**
+
+- Production observability: request logs, metrics, tracing, audit logs
+- Auth abuse protection: rate limiting and brute-force controls
+- Session revocation/logout flows
+- Game server ENet host lifecycle
+- Game-server join-token redemption
+- Character lock acquisition and renewal
+- Game simulation loop
+- World snapshot broadcast loop
 
 ---
 
