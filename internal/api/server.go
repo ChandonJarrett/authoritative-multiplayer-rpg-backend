@@ -14,6 +14,8 @@ import (
 	rpgv1connect "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1/rpgv1connect"
 )
 
+const defaultReadyCheckTimeout = 2 * time.Second
+
 // ReadyCheck verifies whether dependencies required by the API are available.
 type ReadyCheck func(ctx context.Context) error
 
@@ -73,7 +75,7 @@ func NewServer(opts Options) (*Server, error) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/healthz", healthHandler)
-	mux.HandleFunc("/readyz", readyHandler(opts.ReadyCheck))
+	mux.HandleFunc("/readyz", readyHandler(opts.ReadyCheck, defaultReadyCheckTimeout))
 
 	connectOptions := make([]connect.HandlerOption, 0, len(opts.UnaryInterceptors))
 	for _, interceptor := range opts.UnaryInterceptors {
@@ -171,10 +173,17 @@ func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
-func readyHandler(check ReadyCheck) http.HandlerFunc {
+func readyHandler(check ReadyCheck, timeout time.Duration) http.HandlerFunc {
+	if timeout <= 0 {
+		timeout = defaultReadyCheckTimeout
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		if check != nil {
-			if err := check(r.Context()); err != nil {
+			ctx, cancel := context.WithTimeout(r.Context(), timeout)
+			defer cancel()
+
+			if err := check(ctx); err != nil {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusServiceUnavailable)
 				_, _ = w.Write([]byte(`{"status":"not_ready"}`))
