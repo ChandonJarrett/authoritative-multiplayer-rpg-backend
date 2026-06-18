@@ -21,9 +21,11 @@ const (
 	defaultLogLevel  = "info"
 	defaultLogFormat = "text"
 
-	defaultAPIHTTPAddr     = ":8080"
-	defaultGameENetAddr    = ":7777"
-	defaultGameHTTPAddr    = ":8081"
+	defaultAPIHTTPAddr       = ":8080"
+	defaultAPIAllowedOrigins = "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173"
+	defaultGameENetAddr      = ":7777"
+	defaultGameHTTPAddr      = ":8081"
+
 	defaultShutdownTimeout = 10 * time.Second
 
 	defaultPostgresHost    = "localhost"
@@ -75,9 +77,11 @@ type Config struct {
 	LogLevel  string
 	LogFormat string
 
-	APIHTTPAddr     string
-	GameENetAddr    string
-	GameHTTPAddr    string
+	APIHTTPAddr       string
+	APIAllowedOrigins []string
+	GameENetAddr      string
+	GameHTTPAddr      string
+
 	ShutdownTimeout time.Duration
 
 	Postgres PostgresConfig
@@ -153,9 +157,11 @@ func LoadWithSource(source EnvSource) (Config, error) {
 		LogLevel:  stringEnv(source, "LOG_LEVEL", defaultLogLevel),
 		LogFormat: stringEnv(source, "LOG_FORMAT", defaultLogFormat),
 
-		APIHTTPAddr:     stringEnv(source, "API_HTTP_ADDR", defaultAPIHTTPAddr),
-		GameENetAddr:    stringEnv(source, "GAME_ENET_ADDR", defaultGameENetAddr),
-		GameHTTPAddr:    stringEnv(source, "GAME_HTTP_ADDR", defaultGameHTTPAddr),
+		APIHTTPAddr:       stringEnv(source, "API_HTTP_ADDR", defaultAPIHTTPAddr),
+		APIAllowedOrigins: csvEnv(source, "API_ALLOWED_ORIGINS", defaultAPIAllowedOrigins),
+		GameENetAddr:      stringEnv(source, "GAME_ENET_ADDR", defaultGameENetAddr),
+		GameHTTPAddr:      stringEnv(source, "GAME_HTTP_ADDR", defaultGameHTTPAddr),
+
 		ShutdownTimeout: parsed.shutdownTimeout,
 
 		Postgres: PostgresConfig{
@@ -313,6 +319,9 @@ func (c Config) validate() error {
 	if strings.TrimSpace(c.APIHTTPAddr) == "" {
 		errs = append(errs, errors.New("API_HTTP_ADDR is required"))
 	}
+	if len(c.APIAllowedOrigins) == 0 {
+		errs = append(errs, errors.New("API_ALLOWED_ORIGINS must include at least one origin"))
+	}
 	if strings.TrimSpace(c.GameENetAddr) == "" {
 		errs = append(errs, errors.New("GAME_ENET_ADDR is required"))
 	}
@@ -467,6 +476,20 @@ func durationEnv(source EnvSource, key string, def time.Duration) (time.Duration
 		return 0, fmt.Errorf("%s must be a valid Go duration (e.g. 10s, 1m): %w", key, err)
 	}
 	return d, nil
+}
+
+func csvEnv(source EnvSource, key, def string) []string {
+	raw := stringEnv(source, key, def)
+	parts := strings.Split(raw, ",")
+
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			values = append(values, part)
+		}
+	}
+	return values
 }
 
 func oneOf(value string, allowed ...string) bool {

@@ -55,13 +55,8 @@ func main() {
 		ShutdownTimeout: rt.Config.ShutdownTimeout,
 		ReadyCheck:      readyCheck,
 		SystemHandler:   api.NewSystemHandler("api"),
-		AllowedOrigins: []string{
-			"http://localhost:3000",
-			"http://localhost:5173",
-			"http://127.0.0.1:3000",
-			"http://127.0.0.1:5173",
-		},
-		AuthHandler: api.NewAuthHandler(authService),
+		AllowedOrigins:  rt.Config.APIAllowedOrigins,
+		AuthHandler:     api.NewAuthHandler(authService),
 		UnaryInterceptors: []connect.Interceptor{
 			api.NewAuthInterceptor(sessionStore),
 		},
