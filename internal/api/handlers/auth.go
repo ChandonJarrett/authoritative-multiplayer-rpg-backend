@@ -1,9 +1,10 @@
-package api
+package handlers
 
 import (
 	"context"
 
 	"connectrpc.com/connect"
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api"
 	rpgv1 "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1"
 	rpgv1connect "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1/rpgv1connect"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/service"
@@ -28,7 +29,7 @@ func (h *AuthHandler) Register(
 ) (*connect.Response[rpgv1.RegisterResponse], error) {
 	result, err := h.auth.Register(ctx, req.Msg.Email, req.Msg.Password)
 	if err != nil {
-		return nil, ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	return connect.NewResponse(&rpgv1.RegisterResponse{
@@ -44,7 +45,7 @@ func (h *AuthHandler) Login(
 ) (*connect.Response[rpgv1.LoginResponse], error) {
 	result, err := h.auth.Login(ctx, req.Msg.Email, req.Msg.Password)
 	if err != nil {
-		return nil, ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	return connect.NewResponse(&rpgv1.LoginResponse{

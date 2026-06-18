@@ -1,5 +1,5 @@
-// Package api contains HTTP and ConnectRPC server wiring.
-package api
+// Package handlers contains the gRPC handlers for the API server.
+package handlers
 
 import (
 	"context"

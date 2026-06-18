@@ -1,9 +1,10 @@
-package api
+package handlers
 
 import (
 	"context"
 
 	"connectrpc.com/connect"
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
 	rpgv1 "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1"
 	rpgv1connect "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1/rpgv1connect"
@@ -27,14 +28,14 @@ func (h *CharacterHandler) CreateCharacter(
 	ctx context.Context,
 	req *connect.Request[rpgv1.CreateCharacterRequest],
 ) (*connect.Response[rpgv1.CreateCharacterResponse], error) {
-	user, err := RequireAuthUser(ctx)
+	user, err := api.RequireAuthUser(ctx)
 	if err != nil {
-		return nil, ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	characterID, err := h.characters.CreateCharacter(ctx, user.UserID, req.Msg.Name)
 	if err != nil {
-		return nil, ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	return connect.NewResponse(&rpgv1.CreateCharacterResponse{
@@ -47,14 +48,14 @@ func (h *CharacterHandler) ListCharacters(
 	ctx context.Context,
 	_ *connect.Request[rpgv1.ListCharactersRequest],
 ) (*connect.Response[rpgv1.ListCharactersResponse], error) {
-	user, err := RequireAuthUser(ctx)
+	user, err := api.RequireAuthUser(ctx)
 	if err != nil {
-		return nil, ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	characters, err := h.characters.ListCharacters(ctx, user.UserID)
 	if err != nil {
-		return nil, ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	out := make([]*rpgv1.CharacterSummary, 0, len(characters))

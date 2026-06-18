@@ -19,18 +19,23 @@ const defaultReadyCheckTimeout = 2 * time.Second
 // ReadyCheck verifies whether dependencies required by the API are available.
 type ReadyCheck func(ctx context.Context) error
 
+// Handlers groups all ConnectRPC handlers for the API server.
+type Handlers struct {
+	System    rpgv1connect.SystemServiceHandler
+	Auth      rpgv1connect.AuthServiceHandler
+	Character rpgv1connect.CharacterServiceHandler
+	Game      rpgv1connect.GameServiceHandler
+}
+
 // Options configures the API HTTP server.
 type Options struct {
 	Addr              string
 	Log               *slog.Logger
 	ShutdownTimeout   time.Duration
 	AllowedOrigins    []string
-	ReadyCheck        ReadyCheck
-	SystemHandler     rpgv1connect.SystemServiceHandler
-	AuthHandler       rpgv1connect.AuthServiceHandler
 	UnaryInterceptors []connect.Interceptor
-	CharacterHandler  rpgv1connect.CharacterServiceHandler
-	GameHandler       rpgv1connect.GameServiceHandler
+	ReadyCheck        ReadyCheck
+	Handlers          Handlers
 }
 
 // Server owns the API HTTP server lifecycle.
@@ -67,9 +72,9 @@ func NewServer(opts Options) (*Server, error) {
 		}
 	}
 
-	systemHandler := opts.SystemHandler
+	systemHandler := opts.Handlers.System
 	if systemHandler == nil {
-		systemHandler = NewSystemHandler("api")
+		return nil, errors.New("system handler is required")
 	}
 
 	mux := http.NewServeMux()
@@ -85,18 +90,18 @@ func NewServer(opts Options) (*Server, error) {
 	systemPath, systemHTTPHandler := rpgv1connect.NewSystemServiceHandler(systemHandler, connectOptions...)
 	mux.Handle(systemPath, systemHTTPHandler)
 
-	if opts.AuthHandler != nil {
-		authPath, authHTTPHandler := rpgv1connect.NewAuthServiceHandler(opts.AuthHandler, connectOptions...)
+	if opts.Handlers.Auth != nil {
+		authPath, authHTTPHandler := rpgv1connect.NewAuthServiceHandler(opts.Handlers.Auth, connectOptions...)
 		mux.Handle(authPath, authHTTPHandler)
 	}
 
-	if opts.CharacterHandler != nil {
-		characterPath, characterHTTPHandler := rpgv1connect.NewCharacterServiceHandler(opts.CharacterHandler, connectOptions...)
+	if opts.Handlers.Character != nil {
+		characterPath, characterHTTPHandler := rpgv1connect.NewCharacterServiceHandler(opts.Handlers.Character, connectOptions...)
 		mux.Handle(characterPath, characterHTTPHandler)
 	}
 
-	if opts.GameHandler != nil {
-		gamePath, gameHTTPHandler := rpgv1connect.NewGameServiceHandler(opts.GameHandler, connectOptions...)
+	if opts.Handlers.Game != nil {
+		gamePath, gameHTTPHandler := rpgv1connect.NewGameServiceHandler(opts.Handlers.Game, connectOptions...)
 		mux.Handle(gamePath, gameHTTPHandler)
 	}
 

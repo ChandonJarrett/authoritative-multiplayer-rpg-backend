@@ -1,9 +1,10 @@
-package api
+package handlers
 
 import (
 	"context"
 
 	"connectrpc.com/connect"
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api"
 	rpgv1 "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1"
 	rpgv1connect "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1/rpgv1connect"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/service"
@@ -26,14 +27,14 @@ func (h *GameHandler) IssueJoinToken(
 	ctx context.Context,
 	req *connect.Request[rpgv1.IssueJoinTokenRequest],
 ) (*connect.Response[rpgv1.IssueJoinTokenResponse], error) {
-	user, err := RequireAuthUser(ctx)
+	user, err := api.RequireAuthUser(ctx)
 	if err != nil {
-		return nil, ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	result, err := h.handoff.IssueJoinToken(ctx, user.UserID, req.Msg.CharacterId)
 	if err != nil {
-		return nil, ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	return connect.NewResponse(&rpgv1.IssueJoinTokenResponse{

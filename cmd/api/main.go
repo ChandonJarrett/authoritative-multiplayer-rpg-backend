@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api"
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/handlers"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/app"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/cache"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/db"
@@ -53,16 +54,18 @@ func main() {
 		Addr:            rt.Config.APIHTTPAddr,
 		Log:             rt.Log,
 		ShutdownTimeout: rt.Config.ShutdownTimeout,
-		ReadyCheck:      readyCheck,
-		SystemHandler:   api.NewSystemHandler("api"),
 		AllowedOrigins:  rt.Config.APIAllowedOrigins,
-		AuthHandler:     api.NewAuthHandler(authService),
 		UnaryInterceptors: []connect.Interceptor{
 			api.NewRPCLoggingInterceptor(rt.Log),
 			api.NewAuthInterceptor(sessionStore, api.PublicProcedures()),
 		},
-		CharacterHandler: api.NewCharacterHandler(characterService),
-		GameHandler:      api.NewGameHandler(handoffService),
+		ReadyCheck: readyCheck,
+		Handlers: api.Handlers{
+			System:    handlers.NewSystemHandler("api"),
+			Auth:      handlers.NewAuthHandler(authService),
+			Character: handlers.NewCharacterHandler(characterService),
+			Game:      handlers.NewGameHandler(handoffService),
+		},
 	})
 	if err != nil {
 		app.Fatal("failed to create api server", err)
