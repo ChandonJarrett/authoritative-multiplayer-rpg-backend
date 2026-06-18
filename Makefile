@@ -5,7 +5,8 @@ BIN_DIR  := bin
 API_CMD  := ./cmd/api
 GAME_CMD := ./cmd/game
 
-GO_FILES = $(shell git ls-files '*.go') $(shell git ls-files --others --exclude-standard '*.go')
+GO_EXCLUDE := internal/protocol
+GO_FILES = $(shell (git ls-files '*.go'; git ls-files --others --exclude-standard '*.go') | grep -Ev '$(GO_EXCLUDE)')
 
 ENV_RUN := scripts/env-run.sh
 

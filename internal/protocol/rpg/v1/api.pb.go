@@ -7,12 +7,11 @@
 package rpgv1
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -742,26 +741,23 @@ func file_rpg_v1_api_proto_rawDescGZIP() []byte {
 	return file_rpg_v1_api_proto_rawDescData
 }
 
-var (
-	file_rpg_v1_api_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
-	file_rpg_v1_api_proto_goTypes  = []any{
-		(*PingRequest)(nil),             // 0: rpg.v1.PingRequest
-		(*PingResponse)(nil),            // 1: rpg.v1.PingResponse
-		(*RegisterRequest)(nil),         // 2: rpg.v1.RegisterRequest
-		(*RegisterResponse)(nil),        // 3: rpg.v1.RegisterResponse
-		(*LoginRequest)(nil),            // 4: rpg.v1.LoginRequest
-		(*LoginResponse)(nil),           // 5: rpg.v1.LoginResponse
-		(*CreateCharacterRequest)(nil),  // 6: rpg.v1.CreateCharacterRequest
-		(*CreateCharacterResponse)(nil), // 7: rpg.v1.CreateCharacterResponse
-		(*ListCharactersRequest)(nil),   // 8: rpg.v1.ListCharactersRequest
-		(*ListCharactersResponse)(nil),  // 9: rpg.v1.ListCharactersResponse
-		(*CharacterSummary)(nil),        // 10: rpg.v1.CharacterSummary
-		(*IssueJoinTokenRequest)(nil),   // 11: rpg.v1.IssueJoinTokenRequest
-		(*IssueJoinTokenResponse)(nil),  // 12: rpg.v1.IssueJoinTokenResponse
-		(*Vec3)(nil),                    // 13: rpg.v1.Vec3
-	}
-)
-
+var file_rpg_v1_api_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_rpg_v1_api_proto_goTypes = []any{
+	(*PingRequest)(nil),             // 0: rpg.v1.PingRequest
+	(*PingResponse)(nil),            // 1: rpg.v1.PingResponse
+	(*RegisterRequest)(nil),         // 2: rpg.v1.RegisterRequest
+	(*RegisterResponse)(nil),        // 3: rpg.v1.RegisterResponse
+	(*LoginRequest)(nil),            // 4: rpg.v1.LoginRequest
+	(*LoginResponse)(nil),           // 5: rpg.v1.LoginResponse
+	(*CreateCharacterRequest)(nil),  // 6: rpg.v1.CreateCharacterRequest
+	(*CreateCharacterResponse)(nil), // 7: rpg.v1.CreateCharacterResponse
+	(*ListCharactersRequest)(nil),   // 8: rpg.v1.ListCharactersRequest
+	(*ListCharactersResponse)(nil),  // 9: rpg.v1.ListCharactersResponse
+	(*CharacterSummary)(nil),        // 10: rpg.v1.CharacterSummary
+	(*IssueJoinTokenRequest)(nil),   // 11: rpg.v1.IssueJoinTokenRequest
+	(*IssueJoinTokenResponse)(nil),  // 12: rpg.v1.IssueJoinTokenResponse
+	(*Vec3)(nil),                    // 13: rpg.v1.Vec3
+}
 var file_rpg_v1_api_proto_depIdxs = []int32{
 	10, // 0: rpg.v1.ListCharactersResponse.characters:type_name -> rpg.v1.CharacterSummary
 	13, // 1: rpg.v1.CharacterSummary.position:type_name -> rpg.v1.Vec3
