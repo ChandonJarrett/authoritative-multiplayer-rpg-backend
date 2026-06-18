@@ -27,8 +27,10 @@ type Client interface {
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *goredis.StatusCmd
 	Get(ctx context.Context, key string) *goredis.StringCmd
 	SAdd(ctx context.Context, key string, members ...interface{}) *goredis.IntCmd
+	SMembers(ctx context.Context, key string) *goredis.StringSliceCmd
 	Expire(ctx context.Context, key string, expiration time.Duration) *goredis.BoolCmd
 	Del(ctx context.Context, keys ...string) *goredis.IntCmd
+	GetDel(ctx context.Context, key string) *goredis.StringCmd
 }
 
 // NewClient creates and validates a Redis client from configuration.

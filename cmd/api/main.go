@@ -45,6 +45,10 @@ func main() {
 	characterStore := store.NewPostgresCharacterStore(rt.Postgres)
 	characterService := service.NewCharacterService(characterStore)
 
+	joinTokenStore := store.NewRedisJoinTokenStore(rt.Redis, keys)
+	gameServerStore := store.NewRedisGameServerStore(rt.Redis, keys)
+	handoffService := service.NewGameHandoffService(characterStore, joinTokenStore, gameServerStore)
+
 	server, err := api.NewServer(api.Options{
 		Addr:            rt.Config.APIHTTPAddr,
 		Log:             rt.Log,
@@ -62,6 +66,7 @@ func main() {
 			api.NewAuthInterceptor(sessionStore),
 		},
 		CharacterHandler: api.NewCharacterHandler(characterService),
+		GameHandler:      api.NewGameHandler(handoffService),
 	})
 	if err != nil {
 		app.Fatal("failed to create api server", err)
