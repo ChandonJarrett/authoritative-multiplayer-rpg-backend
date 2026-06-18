@@ -1,7 +1,8 @@
-package api
+package middleware
 
 import (
 	"context"
+	"net/http"
 	"strings"
 
 	"github.com/google/uuid"
@@ -10,6 +11,17 @@ import (
 const requestIDHeader = "X-Request-Id"
 
 type requestIDContextKey struct{}
+
+// WithRequestID attaches a request ID to every HTTP request context and response.
+func WithRequestID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := normalizeRequestID(r.Header.Get(requestIDHeader))
+		w.Header().Set(requestIDHeader, requestID)
+
+		ctx := ContextWithRequestID(r.Context(), requestID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 
 // ContextWithRequestID returns a new context with the request ID attached.
 func ContextWithRequestID(ctx context.Context, requestID string) context.Context {
@@ -27,5 +39,6 @@ func normalizeRequestID(raw string) string {
 	if requestID != "" {
 		return requestID
 	}
+
 	return uuid.NewString()
 }

@@ -1,4 +1,5 @@
-package api
+// Package rpcerror provides utilities for mapping internal domain errors to stable ConnectRPC errors.
+package rpcerror
 
 import (
 	"errors"

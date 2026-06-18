@@ -1,11 +1,12 @@
-package api
+// Package middleware provides HTTP and ConnectRPC middleware for the API server.
+package middleware
 
 import (
 	"context"
 	"strings"
 
 	"connectrpc.com/connect"
-
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/rpcerror"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store"
 )
@@ -34,12 +35,12 @@ func NewAuthInterceptor(sessions store.SessionStore, publicMethods ...map[string
 
 			token, err := bearerToken(req.Header().Get("Authorization"))
 			if err != nil {
-				return nil, ToConnectError(err)
+				return nil, rpcerror.ToConnectError(err)
 			}
 
 			userID, err := sessions.GetSessionUserID(ctx, token)
 			if err != nil {
-				return nil, ToConnectError(err)
+				return nil, rpcerror.ToConnectError(err)
 			}
 
 			ctx = ContextWithAuthUser(ctx, AuthUser{UserID: userID})
@@ -50,6 +51,7 @@ func NewAuthInterceptor(sessions store.SessionStore, publicMethods ...map[string
 
 func bearerToken(header string) (string, error) {
 	const prefix = "Bearer "
+
 	if !strings.HasPrefix(header, prefix) {
 		return "", domain.ErrUnauthenticated
 	}

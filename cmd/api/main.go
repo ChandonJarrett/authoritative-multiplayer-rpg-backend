@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/handlers"
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/middleware"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/app"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/cache"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/db"
@@ -56,8 +57,8 @@ func main() {
 		ShutdownTimeout: rt.Config.ShutdownTimeout,
 		AllowedOrigins:  rt.Config.APIAllowedOrigins,
 		UnaryInterceptors: []connect.Interceptor{
-			api.NewRPCLoggingInterceptor(rt.Log),
-			api.NewAuthInterceptor(sessionStore, api.PublicProcedures()),
+			middleware.NewRPCLoggingInterceptor(rt.Log),
+			middleware.NewAuthInterceptor(sessionStore, middleware.PublicProcedures()),
 		},
 		ReadyCheck: readyCheck,
 		Handlers: api.Handlers{

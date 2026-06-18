@@ -1,4 +1,4 @@
-package api
+package middleware
 
 import (
 	"log/slog"
@@ -16,6 +16,7 @@ func (r *responseRecorder) WriteHeader(statusCode int) {
 	if r.statusCode != 0 {
 		return
 	}
+
 	r.statusCode = statusCode
 	r.ResponseWriter.WriteHeader(statusCode)
 }
@@ -30,7 +31,8 @@ func (r *responseRecorder) Write(data []byte) (int, error) {
 	return n, err
 }
 
-func withRequestLogging(log *slog.Logger, next http.Handler) http.Handler {
+// WithRequestLogging logs every completed HTTP request.
+func WithRequestLogging(log *slog.Logger, next http.Handler) http.Handler {
 	if log == nil {
 		log = slog.Default()
 	}
