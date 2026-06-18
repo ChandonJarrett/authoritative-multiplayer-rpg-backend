@@ -13,7 +13,8 @@ import (
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/cache"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/db"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/service"
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store"
+	postgresstore "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store/postgres"
+	redisstore "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store/redis"
 )
 
 func main() {
@@ -40,16 +41,25 @@ func main() {
 		app.Fatal("failed to create cache key builder", err)
 	}
 
-	userStore := store.NewPostgresUserStore(rt.Postgres)
-	sessionStore := store.NewRedisSessionStore(rt.Redis, keys)
-	authService := service.NewAuthService(userStore, sessionStore)
+	userStore := postgresstore.NewPostgresUserStore(rt.Postgres)
+	sessionStore := redisstore.NewRedisSessionStore(rt.Redis, keys)
+	authService, err := service.NewAuthService(userStore, sessionStore)
+	if err != nil {
+		app.Fatal("failed to create auth service", err)
+	}
 
-	characterStore := store.NewPostgresCharacterStore(rt.Postgres)
-	characterService := service.NewCharacterService(characterStore)
+	characterStore := postgresstore.NewPostgresCharacterStore(rt.Postgres)
+	characterService, err := service.NewCharacterService(characterStore)
+	if err != nil {
+		app.Fatal("failed to create character service", err)
+	}
 
-	joinTokenStore := store.NewRedisJoinTokenStore(rt.Redis, keys)
-	gameServerStore := store.NewRedisGameServerStore(rt.Redis, keys)
-	handoffService := service.NewGameHandoffService(characterStore, joinTokenStore, gameServerStore)
+	joinTokenStore := redisstore.NewRedisJoinTokenStore(rt.Redis, keys)
+	gameServerStore := redisstore.NewRedisGameServerStore(rt.Redis, keys)
+	gameService, err := service.NewGameService(characterStore, joinTokenStore, gameServerStore)
+	if err != nil {
+		app.Fatal("failed to create game service", err)
+	}
 
 	server, err := api.NewServer(api.Options{
 		Addr:            rt.Config.APIHTTPAddr,
@@ -65,7 +75,7 @@ func main() {
 			System:    handlers.NewSystemHandler("api"),
 			Auth:      handlers.NewAuthHandler(authService),
 			Character: handlers.NewCharacterHandler(characterService),
-			Game:      handlers.NewGameHandler(handoffService),
+			Game:      handlers.NewGameHandler(gameService),
 		},
 	})
 	if err != nil {

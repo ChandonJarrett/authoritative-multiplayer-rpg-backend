@@ -51,6 +51,9 @@ const (
 	// CharacterServiceListCharactersProcedure is the fully-qualified name of the CharacterService's
 	// ListCharacters RPC.
 	CharacterServiceListCharactersProcedure = "/rpg.v1.CharacterService/ListCharacters"
+	// GameServiceListGameServersProcedure is the fully-qualified name of the GameService's
+	// ListGameServers RPC.
+	GameServiceListGameServersProcedure = "/rpg.v1.GameService/ListGameServers"
 	// GameServiceIssueJoinTokenProcedure is the fully-qualified name of the GameService's
 	// IssueJoinToken RPC.
 	GameServiceIssueJoinTokenProcedure = "/rpg.v1.GameService/IssueJoinToken"
@@ -320,6 +323,7 @@ func (UnimplementedCharacterServiceHandler) ListCharacters(context.Context, *con
 
 // GameServiceClient is a client for the rpg.v1.GameService service.
 type GameServiceClient interface {
+	ListGameServers(context.Context, *connect.Request[v1.ListGameServersRequest]) (*connect.Response[v1.ListGameServersResponse], error)
 	IssueJoinToken(context.Context, *connect.Request[v1.IssueJoinTokenRequest]) (*connect.Response[v1.IssueJoinTokenResponse], error)
 }
 
@@ -334,6 +338,12 @@ func NewGameServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 	baseURL = strings.TrimRight(baseURL, "/")
 	gameServiceMethods := v1.File_rpg_v1_api_proto.Services().ByName("GameService").Methods()
 	return &gameServiceClient{
+		listGameServers: connect.NewClient[v1.ListGameServersRequest, v1.ListGameServersResponse](
+			httpClient,
+			baseURL+GameServiceListGameServersProcedure,
+			connect.WithSchema(gameServiceMethods.ByName("ListGameServers")),
+			connect.WithClientOptions(opts...),
+		),
 		issueJoinToken: connect.NewClient[v1.IssueJoinTokenRequest, v1.IssueJoinTokenResponse](
 			httpClient,
 			baseURL+GameServiceIssueJoinTokenProcedure,
@@ -345,7 +355,13 @@ func NewGameServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // gameServiceClient implements GameServiceClient.
 type gameServiceClient struct {
-	issueJoinToken *connect.Client[v1.IssueJoinTokenRequest, v1.IssueJoinTokenResponse]
+	listGameServers *connect.Client[v1.ListGameServersRequest, v1.ListGameServersResponse]
+	issueJoinToken  *connect.Client[v1.IssueJoinTokenRequest, v1.IssueJoinTokenResponse]
+}
+
+// ListGameServers calls rpg.v1.GameService.ListGameServers.
+func (c *gameServiceClient) ListGameServers(ctx context.Context, req *connect.Request[v1.ListGameServersRequest]) (*connect.Response[v1.ListGameServersResponse], error) {
+	return c.listGameServers.CallUnary(ctx, req)
 }
 
 // IssueJoinToken calls rpg.v1.GameService.IssueJoinToken.
@@ -355,6 +371,7 @@ func (c *gameServiceClient) IssueJoinToken(ctx context.Context, req *connect.Req
 
 // GameServiceHandler is an implementation of the rpg.v1.GameService service.
 type GameServiceHandler interface {
+	ListGameServers(context.Context, *connect.Request[v1.ListGameServersRequest]) (*connect.Response[v1.ListGameServersResponse], error)
 	IssueJoinToken(context.Context, *connect.Request[v1.IssueJoinTokenRequest]) (*connect.Response[v1.IssueJoinTokenResponse], error)
 }
 
@@ -365,6 +382,12 @@ type GameServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewGameServiceHandler(svc GameServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	gameServiceMethods := v1.File_rpg_v1_api_proto.Services().ByName("GameService").Methods()
+	gameServiceListGameServersHandler := connect.NewUnaryHandler(
+		GameServiceListGameServersProcedure,
+		svc.ListGameServers,
+		connect.WithSchema(gameServiceMethods.ByName("ListGameServers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	gameServiceIssueJoinTokenHandler := connect.NewUnaryHandler(
 		GameServiceIssueJoinTokenProcedure,
 		svc.IssueJoinToken,
@@ -373,6 +396,8 @@ func NewGameServiceHandler(svc GameServiceHandler, opts ...connect.HandlerOption
 	)
 	return "/rpg.v1.GameService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case GameServiceListGameServersProcedure:
+			gameServiceListGameServersHandler.ServeHTTP(w, r)
 		case GameServiceIssueJoinTokenProcedure:
 			gameServiceIssueJoinTokenHandler.ServeHTTP(w, r)
 		default:
@@ -383,6 +408,10 @@ func NewGameServiceHandler(svc GameServiceHandler, opts ...connect.HandlerOption
 
 // UnimplementedGameServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedGameServiceHandler struct{}
+
+func (UnimplementedGameServiceHandler) ListGameServers(context.Context, *connect.Request[v1.ListGameServersRequest]) (*connect.Response[v1.ListGameServersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rpg.v1.GameService.ListGameServers is not implemented"))
+}
 
 func (UnimplementedGameServiceHandler) IssueJoinToken(context.Context, *connect.Request[v1.IssueJoinTokenRequest]) (*connect.Response[v1.IssueJoinTokenResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rpg.v1.GameService.IssueJoinToken is not implemented"))

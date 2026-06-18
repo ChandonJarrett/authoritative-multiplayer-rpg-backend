@@ -405,7 +405,8 @@ var CharacterService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	GameService_IssueJoinToken_FullMethodName = "/rpg.v1.GameService/IssueJoinToken"
+	GameService_ListGameServers_FullMethodName = "/rpg.v1.GameService/ListGameServers"
+	GameService_IssueJoinToken_FullMethodName  = "/rpg.v1.GameService/IssueJoinToken"
 )
 
 // GameServiceClient is the client API for GameService service.
@@ -414,6 +415,7 @@ const (
 //
 // GameService issues the short-lived join token a client presents to the game server.
 type GameServiceClient interface {
+	ListGameServers(ctx context.Context, in *ListGameServersRequest, opts ...grpc.CallOption) (*ListGameServersResponse, error)
 	IssueJoinToken(ctx context.Context, in *IssueJoinTokenRequest, opts ...grpc.CallOption) (*IssueJoinTokenResponse, error)
 }
 
@@ -423,6 +425,16 @@ type gameServiceClient struct {
 
 func NewGameServiceClient(cc grpc.ClientConnInterface) GameServiceClient {
 	return &gameServiceClient{cc}
+}
+
+func (c *gameServiceClient) ListGameServers(ctx context.Context, in *ListGameServersRequest, opts ...grpc.CallOption) (*ListGameServersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListGameServersResponse)
+	err := c.cc.Invoke(ctx, GameService_ListGameServers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *gameServiceClient) IssueJoinToken(ctx context.Context, in *IssueJoinTokenRequest, opts ...grpc.CallOption) (*IssueJoinTokenResponse, error) {
@@ -441,6 +453,7 @@ func (c *gameServiceClient) IssueJoinToken(ctx context.Context, in *IssueJoinTok
 //
 // GameService issues the short-lived join token a client presents to the game server.
 type GameServiceServer interface {
+	ListGameServers(context.Context, *ListGameServersRequest) (*ListGameServersResponse, error)
 	IssueJoinToken(context.Context, *IssueJoinTokenRequest) (*IssueJoinTokenResponse, error)
 }
 
@@ -451,6 +464,9 @@ type GameServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedGameServiceServer struct{}
 
+func (UnimplementedGameServiceServer) ListGameServers(context.Context, *ListGameServersRequest) (*ListGameServersResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListGameServers not implemented")
+}
 func (UnimplementedGameServiceServer) IssueJoinToken(context.Context, *IssueJoinTokenRequest) (*IssueJoinTokenResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method IssueJoinToken not implemented")
 }
@@ -472,6 +488,24 @@ func RegisterGameServiceServer(s grpc.ServiceRegistrar, srv GameServiceServer) {
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&GameService_ServiceDesc, srv)
+}
+
+func _GameService_ListGameServers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListGameServersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GameServiceServer).ListGameServers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GameService_ListGameServers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GameServiceServer).ListGameServers(ctx, req.(*ListGameServersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _GameService_IssueJoinToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -499,6 +533,10 @@ var GameService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "rpg.v1.GameService",
 	HandlerType: (*GameServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListGameServers",
+			Handler:    _GameService_ListGameServers_Handler,
+		},
 		{
 			MethodName: "IssueJoinToken",
 			Handler:    _GameService_IssueJoinToken_Handler,

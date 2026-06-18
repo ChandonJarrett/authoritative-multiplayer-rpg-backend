@@ -82,11 +82,28 @@ message CharacterSummary {
 
 // GameService issues the short-lived join token a client presents to the game server.
 service GameService {
+  rpc ListGameServers(ListGameServersRequest) returns (ListGameServersResponse);
   rpc IssueJoinToken(IssueJoinTokenRequest) returns (IssueJoinTokenResponse);
+}
+
+message ListGameServersRequest {}
+
+message ListGameServersResponse {
+  repeated GameServerSummary servers = 1;
+}
+
+message GameServerSummary {
+  string game_server_id = 1;
+  string game_server_addr = 2;
+  int64 expires_in_seconds = 3;
 }
 
 message IssueJoinTokenRequest {
   string character_id = 1;
+
+  // Optional.
+  // If empty, API auto-selects an available game server.
+  string game_server_id = 2;
 }
 
 message IssueJoinTokenResponse {

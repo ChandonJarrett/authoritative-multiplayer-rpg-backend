@@ -8,7 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/rpcerror"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store"
+	redisstore "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store/redis"
 )
 
 // PublicProcedures returns RPC procedures that do not require authentication.
@@ -21,7 +21,7 @@ func PublicProcedures() map[string]struct{} {
 }
 
 // NewAuthInterceptor creates an authentication interceptor that checks for a valid session token.
-func NewAuthInterceptor(sessions store.SessionStore, publicMethods ...map[string]struct{}) connect.UnaryInterceptorFunc {
+func NewAuthInterceptor(sessions redisstore.SessionStore, publicMethods ...map[string]struct{}) connect.UnaryInterceptorFunc {
 	public := PublicProcedures()
 	if len(publicMethods) > 0 && publicMethods[0] != nil {
 		public = publicMethods[0]

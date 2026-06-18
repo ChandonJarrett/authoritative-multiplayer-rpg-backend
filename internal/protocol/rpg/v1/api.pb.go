@@ -561,16 +561,159 @@ func (x *CharacterSummary) GetPosition() *Vec3 {
 	return nil
 }
 
-type IssueJoinTokenRequest struct {
+type ListGameServersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	CharacterId   string                 `protobuf:"bytes,1,opt,name=character_id,json=characterId,proto3" json:"character_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListGameServersRequest) Reset() {
+	*x = ListGameServersRequest{}
+	mi := &file_rpg_v1_api_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListGameServersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListGameServersRequest) ProtoMessage() {}
+
+func (x *ListGameServersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpg_v1_api_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListGameServersRequest.ProtoReflect.Descriptor instead.
+func (*ListGameServersRequest) Descriptor() ([]byte, []int) {
+	return file_rpg_v1_api_proto_rawDescGZIP(), []int{11}
+}
+
+type ListGameServersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Servers       []*GameServerSummary   `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListGameServersResponse) Reset() {
+	*x = ListGameServersResponse{}
+	mi := &file_rpg_v1_api_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListGameServersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListGameServersResponse) ProtoMessage() {}
+
+func (x *ListGameServersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rpg_v1_api_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListGameServersResponse.ProtoReflect.Descriptor instead.
+func (*ListGameServersResponse) Descriptor() ([]byte, []int) {
+	return file_rpg_v1_api_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListGameServersResponse) GetServers() []*GameServerSummary {
+	if x != nil {
+		return x.Servers
+	}
+	return nil
+}
+
+type GameServerSummary struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	GameServerId     string                 `protobuf:"bytes,1,opt,name=game_server_id,json=gameServerId,proto3" json:"game_server_id,omitempty"`
+	GameServerAddr   string                 `protobuf:"bytes,2,opt,name=game_server_addr,json=gameServerAddr,proto3" json:"game_server_addr,omitempty"`
+	ExpiresInSeconds int64                  `protobuf:"varint,3,opt,name=expires_in_seconds,json=expiresInSeconds,proto3" json:"expires_in_seconds,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *GameServerSummary) Reset() {
+	*x = GameServerSummary{}
+	mi := &file_rpg_v1_api_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GameServerSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GameServerSummary) ProtoMessage() {}
+
+func (x *GameServerSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_rpg_v1_api_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GameServerSummary.ProtoReflect.Descriptor instead.
+func (*GameServerSummary) Descriptor() ([]byte, []int) {
+	return file_rpg_v1_api_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GameServerSummary) GetGameServerId() string {
+	if x != nil {
+		return x.GameServerId
+	}
+	return ""
+}
+
+func (x *GameServerSummary) GetGameServerAddr() string {
+	if x != nil {
+		return x.GameServerAddr
+	}
+	return ""
+}
+
+func (x *GameServerSummary) GetExpiresInSeconds() int64 {
+	if x != nil {
+		return x.ExpiresInSeconds
+	}
+	return 0
+}
+
+type IssueJoinTokenRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	CharacterId string                 `protobuf:"bytes,1,opt,name=character_id,json=characterId,proto3" json:"character_id,omitempty"`
+	// Optional.
+	// If empty, API auto-selects an available game server.
+	GameServerId  string `protobuf:"bytes,2,opt,name=game_server_id,json=gameServerId,proto3" json:"game_server_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *IssueJoinTokenRequest) Reset() {
 	*x = IssueJoinTokenRequest{}
-	mi := &file_rpg_v1_api_proto_msgTypes[11]
+	mi := &file_rpg_v1_api_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -582,7 +725,7 @@ func (x *IssueJoinTokenRequest) String() string {
 func (*IssueJoinTokenRequest) ProtoMessage() {}
 
 func (x *IssueJoinTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpg_v1_api_proto_msgTypes[11]
+	mi := &file_rpg_v1_api_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -595,12 +738,19 @@ func (x *IssueJoinTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueJoinTokenRequest.ProtoReflect.Descriptor instead.
 func (*IssueJoinTokenRequest) Descriptor() ([]byte, []int) {
-	return file_rpg_v1_api_proto_rawDescGZIP(), []int{11}
+	return file_rpg_v1_api_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *IssueJoinTokenRequest) GetCharacterId() string {
 	if x != nil {
 		return x.CharacterId
+	}
+	return ""
+}
+
+func (x *IssueJoinTokenRequest) GetGameServerId() string {
+	if x != nil {
+		return x.GameServerId
 	}
 	return ""
 }
@@ -617,7 +767,7 @@ type IssueJoinTokenResponse struct {
 
 func (x *IssueJoinTokenResponse) Reset() {
 	*x = IssueJoinTokenResponse{}
-	mi := &file_rpg_v1_api_proto_msgTypes[12]
+	mi := &file_rpg_v1_api_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -629,7 +779,7 @@ func (x *IssueJoinTokenResponse) String() string {
 func (*IssueJoinTokenResponse) ProtoMessage() {}
 
 func (x *IssueJoinTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpg_v1_api_proto_msgTypes[12]
+	mi := &file_rpg_v1_api_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -642,7 +792,7 @@ func (x *IssueJoinTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueJoinTokenResponse.ProtoReflect.Descriptor instead.
 func (*IssueJoinTokenResponse) Descriptor() ([]byte, []int) {
-	return file_rpg_v1_api_proto_rawDescGZIP(), []int{12}
+	return file_rpg_v1_api_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *IssueJoinTokenResponse) GetJoinToken() string {
@@ -709,9 +859,17 @@ const file_rpg_v1_api_proto_rawDesc = "" +
 	"\fcharacter_id\x18\x01 \x01(\tR\vcharacterId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x15\n" +
 	"\x06map_id\x18\x03 \x01(\tR\x05mapId\x12(\n" +
-	"\bposition\x18\x04 \x01(\v2\f.rpg.v1.Vec3R\bposition\":\n" +
+	"\bposition\x18\x04 \x01(\v2\f.rpg.v1.Vec3R\bposition\"\x18\n" +
+	"\x16ListGameServersRequest\"N\n" +
+	"\x17ListGameServersResponse\x123\n" +
+	"\aservers\x18\x01 \x03(\v2\x19.rpg.v1.GameServerSummaryR\aservers\"\x91\x01\n" +
+	"\x11GameServerSummary\x12$\n" +
+	"\x0egame_server_id\x18\x01 \x01(\tR\fgameServerId\x12(\n" +
+	"\x10game_server_addr\x18\x02 \x01(\tR\x0egameServerAddr\x12,\n" +
+	"\x12expires_in_seconds\x18\x03 \x01(\x03R\x10expiresInSeconds\"`\n" +
 	"\x15IssueJoinTokenRequest\x12!\n" +
-	"\fcharacter_id\x18\x01 \x01(\tR\vcharacterId\"\xb5\x01\n" +
+	"\fcharacter_id\x18\x01 \x01(\tR\vcharacterId\x12$\n" +
+	"\x0egame_server_id\x18\x02 \x01(\tR\fgameServerId\"\xb5\x01\n" +
 	"\x16IssueJoinTokenResponse\x12\x1d\n" +
 	"\n" +
 	"join_token\x18\x01 \x01(\tR\tjoinToken\x12$\n" +
@@ -725,8 +883,9 @@ const file_rpg_v1_api_proto_rawDesc = "" +
 	"\x05Login\x12\x14.rpg.v1.LoginRequest\x1a\x15.rpg.v1.LoginResponse2\xb7\x01\n" +
 	"\x10CharacterService\x12R\n" +
 	"\x0fCreateCharacter\x12\x1e.rpg.v1.CreateCharacterRequest\x1a\x1f.rpg.v1.CreateCharacterResponse\x12O\n" +
-	"\x0eListCharacters\x12\x1d.rpg.v1.ListCharactersRequest\x1a\x1e.rpg.v1.ListCharactersResponse2^\n" +
-	"\vGameService\x12O\n" +
+	"\x0eListCharacters\x12\x1d.rpg.v1.ListCharactersRequest\x1a\x1e.rpg.v1.ListCharactersResponse2\xb2\x01\n" +
+	"\vGameService\x12R\n" +
+	"\x0fListGameServers\x12\x1e.rpg.v1.ListGameServersRequest\x1a\x1f.rpg.v1.ListGameServersResponse\x12O\n" +
 	"\x0eIssueJoinToken\x12\x1d.rpg.v1.IssueJoinTokenRequest\x1a\x1e.rpg.v1.IssueJoinTokenResponseB`Z^github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1;rpgv1b\x06proto3"
 
 var (
@@ -741,7 +900,7 @@ func file_rpg_v1_api_proto_rawDescGZIP() []byte {
 	return file_rpg_v1_api_proto_rawDescData
 }
 
-var file_rpg_v1_api_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_rpg_v1_api_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_rpg_v1_api_proto_goTypes = []any{
 	(*PingRequest)(nil),             // 0: rpg.v1.PingRequest
 	(*PingResponse)(nil),            // 1: rpg.v1.PingResponse
@@ -754,30 +913,36 @@ var file_rpg_v1_api_proto_goTypes = []any{
 	(*ListCharactersRequest)(nil),   // 8: rpg.v1.ListCharactersRequest
 	(*ListCharactersResponse)(nil),  // 9: rpg.v1.ListCharactersResponse
 	(*CharacterSummary)(nil),        // 10: rpg.v1.CharacterSummary
-	(*IssueJoinTokenRequest)(nil),   // 11: rpg.v1.IssueJoinTokenRequest
-	(*IssueJoinTokenResponse)(nil),  // 12: rpg.v1.IssueJoinTokenResponse
-	(*Vec3)(nil),                    // 13: rpg.v1.Vec3
+	(*ListGameServersRequest)(nil),  // 11: rpg.v1.ListGameServersRequest
+	(*ListGameServersResponse)(nil), // 12: rpg.v1.ListGameServersResponse
+	(*GameServerSummary)(nil),       // 13: rpg.v1.GameServerSummary
+	(*IssueJoinTokenRequest)(nil),   // 14: rpg.v1.IssueJoinTokenRequest
+	(*IssueJoinTokenResponse)(nil),  // 15: rpg.v1.IssueJoinTokenResponse
+	(*Vec3)(nil),                    // 16: rpg.v1.Vec3
 }
 var file_rpg_v1_api_proto_depIdxs = []int32{
 	10, // 0: rpg.v1.ListCharactersResponse.characters:type_name -> rpg.v1.CharacterSummary
-	13, // 1: rpg.v1.CharacterSummary.position:type_name -> rpg.v1.Vec3
-	0,  // 2: rpg.v1.SystemService.Ping:input_type -> rpg.v1.PingRequest
-	2,  // 3: rpg.v1.AuthService.Register:input_type -> rpg.v1.RegisterRequest
-	4,  // 4: rpg.v1.AuthService.Login:input_type -> rpg.v1.LoginRequest
-	6,  // 5: rpg.v1.CharacterService.CreateCharacter:input_type -> rpg.v1.CreateCharacterRequest
-	8,  // 6: rpg.v1.CharacterService.ListCharacters:input_type -> rpg.v1.ListCharactersRequest
-	11, // 7: rpg.v1.GameService.IssueJoinToken:input_type -> rpg.v1.IssueJoinTokenRequest
-	1,  // 8: rpg.v1.SystemService.Ping:output_type -> rpg.v1.PingResponse
-	3,  // 9: rpg.v1.AuthService.Register:output_type -> rpg.v1.RegisterResponse
-	5,  // 10: rpg.v1.AuthService.Login:output_type -> rpg.v1.LoginResponse
-	7,  // 11: rpg.v1.CharacterService.CreateCharacter:output_type -> rpg.v1.CreateCharacterResponse
-	9,  // 12: rpg.v1.CharacterService.ListCharacters:output_type -> rpg.v1.ListCharactersResponse
-	12, // 13: rpg.v1.GameService.IssueJoinToken:output_type -> rpg.v1.IssueJoinTokenResponse
-	8,  // [8:14] is the sub-list for method output_type
-	2,  // [2:8] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	16, // 1: rpg.v1.CharacterSummary.position:type_name -> rpg.v1.Vec3
+	13, // 2: rpg.v1.ListGameServersResponse.servers:type_name -> rpg.v1.GameServerSummary
+	0,  // 3: rpg.v1.SystemService.Ping:input_type -> rpg.v1.PingRequest
+	2,  // 4: rpg.v1.AuthService.Register:input_type -> rpg.v1.RegisterRequest
+	4,  // 5: rpg.v1.AuthService.Login:input_type -> rpg.v1.LoginRequest
+	6,  // 6: rpg.v1.CharacterService.CreateCharacter:input_type -> rpg.v1.CreateCharacterRequest
+	8,  // 7: rpg.v1.CharacterService.ListCharacters:input_type -> rpg.v1.ListCharactersRequest
+	11, // 8: rpg.v1.GameService.ListGameServers:input_type -> rpg.v1.ListGameServersRequest
+	14, // 9: rpg.v1.GameService.IssueJoinToken:input_type -> rpg.v1.IssueJoinTokenRequest
+	1,  // 10: rpg.v1.SystemService.Ping:output_type -> rpg.v1.PingResponse
+	3,  // 11: rpg.v1.AuthService.Register:output_type -> rpg.v1.RegisterResponse
+	5,  // 12: rpg.v1.AuthService.Login:output_type -> rpg.v1.LoginResponse
+	7,  // 13: rpg.v1.CharacterService.CreateCharacter:output_type -> rpg.v1.CreateCharacterResponse
+	9,  // 14: rpg.v1.CharacterService.ListCharacters:output_type -> rpg.v1.ListCharactersResponse
+	12, // 15: rpg.v1.GameService.ListGameServers:output_type -> rpg.v1.ListGameServersResponse
+	15, // 16: rpg.v1.GameService.IssueJoinToken:output_type -> rpg.v1.IssueJoinTokenResponse
+	10, // [10:17] is the sub-list for method output_type
+	3,  // [3:10] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_rpg_v1_api_proto_init() }
@@ -792,7 +957,7 @@ func file_rpg_v1_api_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rpg_v1_api_proto_rawDesc), len(file_rpg_v1_api_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   4,
 		},
