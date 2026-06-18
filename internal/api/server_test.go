@@ -156,3 +156,33 @@ func newTestServerWithOptions(t *testing.T, opts Options) *Server {
 
 	return server
 }
+
+func TestRequestIDGeneratedWhenMissing(t *testing.T) {
+	server := newTestServer(t, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	rec := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+	if got := rec.Header().Get("X-Request-Id"); got == "" {
+		t.Fatal("expected X-Request-Id response header")
+	}
+}
+
+func TestRequestIDPreservedWhenProvided(t *testing.T) {
+	server := newTestServer(t, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req.Header.Set("X-Request-Id", "test-request-id")
+	rec := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("X-Request-Id"); got != "test-request-id" {
+		t.Fatalf("expected request id to be preserved, got %q", got)
+	}
+}

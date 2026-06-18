@@ -98,7 +98,7 @@ func NewServer(opts Options) (*Server, error) {
 		mux.Handle(gamePath, gameHTTPHandler)
 	}
 
-	handler := withCORS(mux, allowedOrigins)
+	handler := withRequestLogging(log, withRequestID(withCORS(mux, allowedOrigins)))
 
 	httpServer := &http.Server{
 		Addr:    opts.Addr,
@@ -237,4 +237,14 @@ func isOriginAllowed(origin string, allowedOrigins []string) bool {
 	}
 
 	return false
+}
+
+func withRequestID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := normalizeRequestID(r.Header.Get(requestIDHeader))
+		w.Header().Set(requestIDHeader, requestID)
+
+		ctx := ContextWithRequestID(r.Context(), requestID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
