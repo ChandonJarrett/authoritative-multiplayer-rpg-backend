@@ -59,7 +59,7 @@ func main() {
 		AuthHandler:     api.NewAuthHandler(authService),
 		UnaryInterceptors: []connect.Interceptor{
 			api.NewRPCLoggingInterceptor(rt.Log),
-			api.NewAuthInterceptor(sessionStore),
+			api.NewAuthInterceptor(sessionStore, api.PublicProcedures()),
 		},
 		CharacterHandler: api.NewCharacterHandler(characterService),
 		GameHandler:      api.NewGameHandler(handoffService),

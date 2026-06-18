@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
 	rpgv1 "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1"
 	rpgv1connect "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1/rpgv1connect"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/service"
@@ -27,9 +26,9 @@ func (h *GameHandler) IssueJoinToken(
 	ctx context.Context,
 	req *connect.Request[rpgv1.IssueJoinTokenRequest],
 ) (*connect.Response[rpgv1.IssueJoinTokenResponse], error) {
-	user, ok := AuthUserFromContext(ctx)
-	if !ok {
-		return nil, ToConnectError(domain.ErrUnauthenticated)
+	user, err := RequireAuthUser(ctx)
+	if err != nil {
+		return nil, ToConnectError(err)
 	}
 
 	result, err := h.handoff.IssueJoinToken(ctx, user.UserID, req.Msg.CharacterId)

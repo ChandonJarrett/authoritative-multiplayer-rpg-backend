@@ -27,9 +27,9 @@ func (h *CharacterHandler) CreateCharacter(
 	ctx context.Context,
 	req *connect.Request[rpgv1.CreateCharacterRequest],
 ) (*connect.Response[rpgv1.CreateCharacterResponse], error) {
-	user, ok := AuthUserFromContext(ctx)
-	if !ok {
-		return nil, ToConnectError(domain.ErrUnauthenticated)
+	user, err := RequireAuthUser(ctx)
+	if err != nil {
+		return nil, ToConnectError(err)
 	}
 
 	characterID, err := h.characters.CreateCharacter(ctx, user.UserID, req.Msg.Name)
@@ -47,9 +47,9 @@ func (h *CharacterHandler) ListCharacters(
 	ctx context.Context,
 	_ *connect.Request[rpgv1.ListCharactersRequest],
 ) (*connect.Response[rpgv1.ListCharactersResponse], error) {
-	user, ok := AuthUserFromContext(ctx)
-	if !ok {
-		return nil, ToConnectError(domain.ErrUnauthenticated)
+	user, err := RequireAuthUser(ctx)
+	if err != nil {
+		return nil, ToConnectError(err)
 	}
 
 	characters, err := h.characters.ListCharacters(ctx, user.UserID)

@@ -5,21 +5,30 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store"
 )
 
-// NewAuthInterceptor creates a new authentication interceptor that checks for a valid session token in the Authorization header of incoming requests.
-func NewAuthInterceptor(sessions store.SessionStore) connect.UnaryInterceptorFunc {
-	publicMethods := map[string]struct{}{
+// PublicProcedures returns RPC procedures that do not require authentication.
+func PublicProcedures() map[string]struct{} {
+	return map[string]struct{}{
 		"/rpg.v1.SystemService/Ping":   {},
 		"/rpg.v1.AuthService/Register": {},
 		"/rpg.v1.AuthService/Login":    {},
 	}
+}
+
+// NewAuthInterceptor creates an authentication interceptor that checks for a valid session token.
+func NewAuthInterceptor(sessions store.SessionStore, publicMethods ...map[string]struct{}) connect.UnaryInterceptorFunc {
+	public := PublicProcedures()
+	if len(publicMethods) > 0 && publicMethods[0] != nil {
+		public = publicMethods[0]
+	}
 
 	return func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			if _, ok := publicMethods[req.Spec().Procedure]; ok {
+			if _, ok := public[req.Spec().Procedure]; ok {
 				return next(ctx, req)
 			}
 

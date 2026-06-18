@@ -1,6 +1,10 @@
 package api
 
-import "context"
+import (
+	"context"
+
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
+)
 
 type authContextKey struct{}
 
@@ -18,4 +22,13 @@ func ContextWithAuthUser(ctx context.Context, user AuthUser) context.Context {
 func AuthUserFromContext(ctx context.Context) (AuthUser, bool) {
 	user, ok := ctx.Value(authContextKey{}).(AuthUser)
 	return user, ok
+}
+
+// RequireAuthUser returns the authenticated user or ErrUnauthenticated.
+func RequireAuthUser(ctx context.Context) (AuthUser, error) {
+	user, ok := AuthUserFromContext(ctx)
+	if !ok {
+		return AuthUser{}, domain.ErrUnauthenticated
+	}
+	return user, nil
 }
