@@ -25,9 +25,11 @@ type Client interface {
 	PoolStats() *goredis.PoolStats
 
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *goredis.StatusCmd
+	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *goredis.BoolCmd
 	Get(ctx context.Context, key string) *goredis.StringCmd
 	GetDel(ctx context.Context, key string) *goredis.StringCmd
 	Del(ctx context.Context, keys ...string) *goredis.IntCmd
+	Eval(ctx context.Context, script string, keys []string, args ...interface{}) *goredis.Cmd
 
 	SAdd(ctx context.Context, key string, members ...interface{}) *goredis.IntCmd
 	SRem(ctx context.Context, key string, members ...interface{}) *goredis.IntCmd
@@ -49,10 +51,12 @@ func NewClient(ctx context.Context, cfg config.RedisConfig) (*goredis.Client, er
 		PoolSize:     cfg.PoolSize,
 		MinIdleConns: cfg.MinIdleConns,
 	})
+
 	if err := Health(ctx, client); err != nil {
 		_ = client.Close()
 		return nil, err
 	}
+
 	return client, nil
 }
 
@@ -64,6 +68,7 @@ func Health(ctx context.Context, client Client) error {
 	if err := client.Ping(ctx).Err(); err != nil {
 		return fmt.Errorf("redis ping: %w", err)
 	}
+
 	return nil
 }
 
@@ -75,6 +80,7 @@ func Close(client Client) error {
 	if err := client.Close(); err != nil {
 		return fmt.Errorf("close redis: %w", err)
 	}
+
 	return nil
 }
 
@@ -93,10 +99,12 @@ func Snapshot(client Client) (Stats, error) {
 	if client == nil {
 		return Stats{}, ErrNilClient
 	}
+
 	s := client.PoolStats()
 	if s == nil {
 		return Stats{}, ErrNilPoolStats
 	}
+
 	return Stats{
 		PoolHits:     s.Hits,
 		PoolMisses:   s.Misses,
