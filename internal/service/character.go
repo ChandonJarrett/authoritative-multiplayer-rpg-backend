@@ -9,6 +9,13 @@ import (
 	"github.com/google/uuid"
 )
 
+// CharacterStore is the durable character storage required by character and handoff services.
+type CharacterStore interface {
+	CreateCharacter(ctx context.Context, character domain.Character) error
+	ListCharactersByUserID(ctx context.Context, userID string) ([]domain.Character, error)
+	GetCharacterByID(ctx context.Context, characterID string) (domain.Character, error)
+}
+
 // DefaultMapID is the ID of the default map new characters start on.
 const DefaultMapID = "starter_zone"
 

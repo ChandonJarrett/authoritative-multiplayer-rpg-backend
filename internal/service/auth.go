@@ -1,3 +1,4 @@
+// Package service provides application services that orchestrate domain operations and enforce business rules.
 package service
 
 import (
@@ -9,6 +10,21 @@ import (
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/validate"
 	"github.com/google/uuid"
 )
+
+// UserStore is the durable user storage required by AuthService.
+type UserStore interface {
+	CreateUser(ctx context.Context, user domain.User) error
+	GetUserByEmail(ctx context.Context, email string) (domain.User, error)
+	GetUserByID(ctx context.Context, userID string) (domain.User, error)
+}
+
+// SessionStore is the ephemeral session storage required by AuthService.
+type SessionStore interface {
+	CreateSession(ctx context.Context, sessionID, userID string) error
+	GetSessionUserID(ctx context.Context, sessionID string) (string, error)
+	DeleteSession(ctx context.Context, sessionID string) error
+	DeleteUserSessions(ctx context.Context, userID string) error
+}
 
 // AuthService provides user registration, login, and session management.
 type AuthService struct {

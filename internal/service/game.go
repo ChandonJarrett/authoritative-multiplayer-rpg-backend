@@ -11,6 +11,20 @@ import (
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/validate"
 )
 
+// JoinTokenStore is the ephemeral join-token storage required by GameHandoffService.
+type JoinTokenStore interface {
+	CreateJoinToken(ctx context.Context, token domain.JoinToken) error
+	ConsumeJoinToken(ctx context.Context, token string) (domain.JoinToken, error)
+}
+
+// GameServerStore is the ephemeral game-server registry required by GameHandoffService.
+type GameServerStore interface {
+	RegisterGameServer(ctx context.Context, server domain.GameServer) error
+	DeregisterGameServer(ctx context.Context, serverID string) error
+	ListGameServers(ctx context.Context) ([]domain.GameServer, error)
+	GetGameServerByID(ctx context.Context, serverID string) (domain.GameServer, error)
+}
+
 // GameService provides game-related operations.
 type GameService struct {
 	characters CharacterStore
