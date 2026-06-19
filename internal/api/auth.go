@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store"
 )
@@ -46,7 +45,11 @@ func NewAuthInterceptor(sessions store.SessionStore, publicMethods ...map[string
 				return nil, ToConnectError(err)
 			}
 
-			ctx = ContextWithAuthUser(ctx, AuthUser{UserID: userID})
+			ctx = ContextWithAuthUser(ctx, AuthUser{
+				UserID:       userID,
+				SessionToken: token,
+			})
+
 			return next(ctx, req)
 		}
 	}
@@ -58,15 +61,12 @@ func BearerToken(header string) (string, error) {
 	if !ok {
 		return "", domain.ErrUnauthenticated
 	}
-
 	if !strings.EqualFold(scheme, "Bearer") {
 		return "", domain.ErrUnauthenticated
 	}
-
 	token := strings.TrimSpace(value)
 	if token == "" || strings.ContainsAny(token, " \t\r\n") {
 		return "", domain.ErrUnauthenticated
 	}
-
 	return token, nil
 }

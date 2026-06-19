@@ -13,7 +13,8 @@ type (
 
 // AuthUser represents the authenticated user attached to a request context.
 type AuthUser struct {
-	UserID string
+	UserID       string
+	SessionToken string
 }
 
 // ContextWithAuthUser returns a context containing authenticated user data.
@@ -31,6 +32,18 @@ func AuthUserFromContext(ctx context.Context) (AuthUser, bool) {
 func RequireAuthUser(ctx context.Context) (AuthUser, error) {
 	user, ok := AuthUserFromContext(ctx)
 	if !ok {
+		return AuthUser{}, domain.ErrUnauthenticated
+	}
+	return user, nil
+}
+
+// RequireAuthSession returns both user and session token.
+func RequireAuthSession(ctx context.Context) (AuthUser, error) {
+	user, err := RequireAuthUser(ctx)
+	if err != nil {
+		return AuthUser{}, err
+	}
+	if user.SessionToken == "" {
 		return AuthUser{}, domain.ErrUnauthenticated
 	}
 	return user, nil

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api"
 	rpgv1 "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1"
 	rpgv1connect "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1/rpgv1connect"
@@ -58,14 +57,14 @@ func (h *AuthHandler) Login(
 // Logout revokes the current authenticated bearer session.
 func (h *AuthHandler) Logout(
 	ctx context.Context,
-	req *connect.Request[rpgv1.LogoutRequest],
+	_ *connect.Request[rpgv1.LogoutRequest],
 ) (*connect.Response[rpgv1.LogoutResponse], error) {
-	token, err := api.BearerToken(req.Header().Get("Authorization"))
+	authUser, err := api.RequireAuthSession(ctx)
 	if err != nil {
 		return nil, api.ToConnectError(err)
 	}
 
-	if err := h.auth.RevokeSession(ctx, token); err != nil {
+	if err := h.auth.RevokeSession(ctx, authUser.SessionToken); err != nil {
 		return nil, api.ToConnectError(err)
 	}
 
