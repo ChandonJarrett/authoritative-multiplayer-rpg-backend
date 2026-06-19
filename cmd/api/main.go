@@ -4,8 +4,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
+
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/handlers"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/middleware"
@@ -43,12 +45,14 @@ func main() {
 
 	userStore := postgresstore.NewPostgresUserStore(rt.Postgres)
 	sessionStore := redisstore.NewRedisSessionStore(rt.Redis, keys)
+
 	authService, err := service.NewAuthService(userStore, sessionStore)
 	if err != nil {
 		app.Fatal("failed to create auth service", err)
 	}
 
 	characterStore := postgresstore.NewPostgresCharacterStore(rt.Postgres)
+
 	characterService, err := service.NewCharacterService(characterStore)
 	if err != nil {
 		app.Fatal("failed to create character service", err)
@@ -56,6 +60,7 @@ func main() {
 
 	joinTokenStore := redisstore.NewRedisJoinTokenStore(rt.Redis, keys)
 	gameServerStore := redisstore.NewRedisGameServerStore(rt.Redis, keys)
+
 	gameService, err := service.NewGameService(characterStore, joinTokenStore, gameServerStore)
 	if err != nil {
 		app.Fatal("failed to create game service", err)
@@ -68,6 +73,10 @@ func main() {
 		AllowedOrigins:  rt.Config.APIAllowedOrigins,
 		UnaryInterceptors: []connect.Interceptor{
 			middleware.NewRPCLoggingInterceptor(rt.Log),
+			middleware.NewAuthRateLimitInterceptor(middleware.RateLimitConfig{
+				Window: time.Minute,
+				Burst:  10,
+			}),
 			middleware.NewAuthInterceptor(sessionStore, middleware.PublicProcedures()),
 		},
 		ReadyCheck: readyCheck,

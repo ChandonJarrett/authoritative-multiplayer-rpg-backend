@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/middleware"
 	rpgv1connect "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1/rpgv1connect"
 )
@@ -73,13 +74,11 @@ func NewServer(opts Options) (*Server, error) {
 		}
 	}
 
-	systemHandler := opts.Handlers.System
-	if systemHandler == nil {
+	if opts.Handlers.System == nil {
 		return nil, errors.New("system handler is required")
 	}
 
 	mux := http.NewServeMux()
-
 	mux.HandleFunc("/healthz", healthHandler)
 	mux.HandleFunc("/readyz", readyHandler(opts.ReadyCheck, defaultReadyCheckTimeout))
 
@@ -88,7 +87,7 @@ func NewServer(opts Options) (*Server, error) {
 		connectOptions = append(connectOptions, connect.WithInterceptors(interceptor))
 	}
 
-	systemPath, systemHTTPHandler := rpgv1connect.NewSystemServiceHandler(systemHandler, connectOptions...)
+	systemPath, systemHTTPHandler := rpgv1connect.NewSystemServiceHandler(opts.Handlers.System, connectOptions...)
 	mux.Handle(systemPath, systemHTTPHandler)
 
 	if opts.Handlers.Auth != nil {
@@ -106,24 +105,26 @@ func NewServer(opts Options) (*Server, error) {
 		mux.Handle(gamePath, gameHTTPHandler)
 	}
 
-	handler := middleware.WithRequestLogging(
+	handler := middleware.WithPanicRecovery(
 		log,
-		middleware.WithRequestID(
-			middleware.WithCORS(mux, allowedOrigins),
+		middleware.WithRequestLogging(
+			log,
+			middleware.WithRequestID(
+				middleware.WithCORS(mux, allowedOrigins),
+			),
 		),
 	)
 
 	httpServer := &http.Server{
-		Addr:    opts.Addr,
-		Handler: handler,
-
+		Addr:              opts.Addr,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
 	}
 
-	// Enable HTTP/1 + unencrypted HTTP/2 (h2c)
 	httpServer.Protocols = new(http.Protocols)
 	httpServer.Protocols.SetHTTP1(true)
 	httpServer.Protocols.SetUnencryptedHTTP2(true)
@@ -175,14 +176,13 @@ func (s *Server) Run(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("run api http server: %w", err)
 		}
+
 		return nil
 	}
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(`{"status":"ok"}`))
+	writeJSON(w, http.StatusOK, `{"status":"ok"}`)
 }
 
 func readyHandler(check ReadyCheck, timeout time.Duration) http.HandlerFunc {
@@ -196,15 +196,17 @@ func readyHandler(check ReadyCheck, timeout time.Duration) http.HandlerFunc {
 			defer cancel()
 
 			if err := check(ctx); err != nil {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusServiceUnavailable)
-				_, _ = w.Write([]byte(`{"status":"not_ready"}`))
+				writeJSON(w, http.StatusServiceUnavailable, `{"status":"not_ready"}`)
 				return
 			}
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ready"}`))
+		writeJSON(w, http.StatusOK, `{"status":"ready"}`)
 	}
+}
+
+func writeJSON(w http.ResponseWriter, statusCode int, body string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	_, _ = w.Write([]byte(body))
 }
