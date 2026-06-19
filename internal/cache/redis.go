@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/config"
-
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -18,7 +17,8 @@ var ErrNilClient = errors.New("redis client is nil")
 // ErrNilPoolStats is returned when PoolStats returns nil.
 var ErrNilPoolStats = errors.New("redis pool stats is nil")
 
-// Client is the minimal Redis interface required by this package; *goredis.Client satisfies this interface.
+// Client is the minimal Redis interface required by this package and Redis-backed stores.
+// *goredis.Client satisfies this interface.
 type Client interface {
 	Ping(ctx context.Context) *goredis.StatusCmd
 	Close() error
@@ -26,11 +26,15 @@ type Client interface {
 
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *goredis.StatusCmd
 	Get(ctx context.Context, key string) *goredis.StringCmd
+	GetDel(ctx context.Context, key string) *goredis.StringCmd
+	Del(ctx context.Context, keys ...string) *goredis.IntCmd
+
 	SAdd(ctx context.Context, key string, members ...interface{}) *goredis.IntCmd
+	SRem(ctx context.Context, key string, members ...interface{}) *goredis.IntCmd
 	SMembers(ctx context.Context, key string) *goredis.StringSliceCmd
 	Expire(ctx context.Context, key string, expiration time.Duration) *goredis.BoolCmd
-	Del(ctx context.Context, keys ...string) *goredis.IntCmd
-	GetDel(ctx context.Context, key string) *goredis.StringCmd
+
+	Incr(ctx context.Context, key string) *goredis.IntCmd
 }
 
 // NewClient creates and validates a Redis client from configuration.
@@ -45,12 +49,10 @@ func NewClient(ctx context.Context, cfg config.RedisConfig) (*goredis.Client, er
 		PoolSize:     cfg.PoolSize,
 		MinIdleConns: cfg.MinIdleConns,
 	})
-
 	if err := Health(ctx, client); err != nil {
 		_ = client.Close()
 		return nil, err
 	}
-
 	return client, nil
 }
 

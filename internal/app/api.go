@@ -58,6 +58,11 @@ func NewAPIServer(rt *Runtime) (*api.Server, error) {
 	joinTokenStore := redisstore.NewJoinTokenStore(rt.Redis, keys)
 	gameServerStore := redisstore.NewGameServerStore(rt.Redis, keys)
 
+	authLimiter, err := redisstore.NewRateLimiter(rt.Redis, keys, time.Minute, 10)
+	if err != nil {
+		return nil, fmt.Errorf("create auth rate limiter: %w", err)
+	}
+
 	authService, err := service.NewAuthService(userStore, sessionStore)
 	if err != nil {
 		return nil, fmt.Errorf("create auth service: %w", err)
@@ -81,8 +86,9 @@ func NewAPIServer(rt *Runtime) (*api.Server, error) {
 		UnaryInterceptors: []connect.Interceptor{
 			middleware.NewRPCLoggingInterceptor(rt.Log),
 			middleware.NewAuthRateLimitInterceptor(middleware.RateLimitConfig{
-				Window: time.Minute,
-				Burst:  10,
+				Window:  time.Minute,
+				Burst:   10,
+				Limiter: authLimiter,
 			}),
 			middleware.NewAuthInterceptor(sessionStore, middleware.PublicProcedures()),
 		},
