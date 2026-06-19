@@ -36,7 +36,7 @@ func (s *CharacterService) CreateCharacter(ctx context.Context, userID, name str
 		return "", domain.ErrInternal
 	}
 
-	userID, err := validate.RequiredID("user ID", userID)
+	userID, err := validate.UserID(userID)
 	if err != nil {
 		return "", err
 	}
@@ -53,7 +53,6 @@ func (s *CharacterService) CreateCharacter(ctx context.Context, userID, name str
 		MapID:    DefaultMapID,
 		Position: DefaultSpawn,
 	}
-
 	if err := s.characters.CreateCharacter(ctx, character); err != nil {
 		return "", err
 	}
@@ -67,7 +66,7 @@ func (s *CharacterService) ListCharacters(ctx context.Context, userID string) ([
 		return nil, domain.ErrInternal
 	}
 
-	userID, err := validate.RequiredID("user ID", userID)
+	userID, err := validate.UserID(userID)
 	if err != nil {
 		return nil, err
 	}

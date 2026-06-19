@@ -3,11 +3,9 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/db"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/validate"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -27,19 +25,6 @@ func (s *UserStore) CreateUser(ctx context.Context, user domain.User) error {
 		return db.ErrNilPool
 	}
 
-	if _, err := validate.RequiredID("user ID", user.ID); err != nil {
-		return err
-	}
-
-	email, err := validate.Email(user.Email)
-	if err != nil {
-		return err
-	}
-
-	if user.PasswordHash == "" {
-		return fmt.Errorf("password hash is required: %w", domain.ErrInvalidArgument)
-	}
-
 	const query = `
         INSERT INTO users (
             id,
@@ -52,8 +37,7 @@ func (s *UserStore) CreateUser(ctx context.Context, user domain.User) error {
             $3
         )
     `
-
-	_, err = s.pool.Exec(ctx, query, user.ID, email, user.PasswordHash)
+	_, err := s.pool.Exec(ctx, query, user.ID, user.Email, user.PasswordHash)
 	if err != nil {
 		return mapPostgresError(err)
 	}
@@ -67,11 +51,6 @@ func (s *UserStore) GetUserByEmail(ctx context.Context, email string) (domain.Us
 		return domain.User{}, db.ErrNilPool
 	}
 
-	email, err := validate.Email(email)
-	if err != nil {
-		return domain.User{}, err
-	}
-
 	const query = `
         SELECT
             id,
@@ -82,7 +61,6 @@ func (s *UserStore) GetUserByEmail(ctx context.Context, email string) (domain.Us
         FROM users
         WHERE email = $1
     `
-
 	user, err := scanUser(s.pool.QueryRow(ctx, query, email))
 	if err != nil {
 		return domain.User{}, err
@@ -97,11 +75,6 @@ func (s *UserStore) GetUserByID(ctx context.Context, userID string) (domain.User
 		return domain.User{}, db.ErrNilPool
 	}
 
-	userID, err := validate.RequiredID("user ID", userID)
-	if err != nil {
-		return domain.User{}, err
-	}
-
 	const query = `
         SELECT
             id,
@@ -112,7 +85,6 @@ func (s *UserStore) GetUserByID(ctx context.Context, userID string) (domain.User
         FROM users
         WHERE id = $1
     `
-
 	user, err := scanUser(s.pool.QueryRow(ctx, query, userID))
 	if err != nil {
 		return domain.User{}, err

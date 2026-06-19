@@ -36,7 +36,6 @@ func NewAuthService(users store.UserStore, sessions store.SessionStore) (*AuthSe
 	if sessions == nil {
 		return nil, fmt.Errorf("session store is required: %w", domain.ErrInvalidArgument)
 	}
-
 	return &AuthService{
 		users:    users,
 		sessions: sessions,
@@ -54,10 +53,6 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (Aut
 		return AuthResult{}, err
 	}
 
-	if err := auth.ValidatePassword(password); err != nil {
-		return AuthResult{}, err
-	}
-
 	passwordHash, err := auth.HashPassword(password)
 	if err != nil {
 		return AuthResult{}, fmt.Errorf("hash password: %w", err)
@@ -68,7 +63,6 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (Aut
 		Email:        email,
 		PasswordHash: passwordHash,
 	}
-
 	if err := s.users.CreateUser(ctx, user); err != nil {
 		return AuthResult{}, err
 	}
@@ -109,7 +103,7 @@ func (s *AuthService) RevokeSession(ctx context.Context, sessionToken string) er
 		return domain.ErrInternal
 	}
 
-	sessionToken, err := validate.RequiredID("session token", sessionToken)
+	sessionToken, err := validate.SessionToken(sessionToken)
 	if err != nil {
 		return err
 	}
@@ -123,7 +117,7 @@ func (s *AuthService) RevokeUserSessions(ctx context.Context, userID string) err
 		return domain.ErrInternal
 	}
 
-	userID, err := validate.RequiredID("user ID", userID)
+	userID, err := validate.UserID(userID)
 	if err != nil {
 		return err
 	}
@@ -132,7 +126,7 @@ func (s *AuthService) RevokeUserSessions(ctx context.Context, userID string) err
 }
 
 func (s *AuthService) createSession(ctx context.Context, userID string) (AuthResult, error) {
-	userID, err := validate.RequiredID("user ID", userID)
+	userID, err := validate.UserID(userID)
 	if err != nil {
 		return AuthResult{}, err
 	}

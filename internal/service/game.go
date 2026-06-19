@@ -43,7 +43,6 @@ func NewGameService(
 	if servers == nil {
 		return nil, fmt.Errorf("game server store is required: %w", domain.ErrInvalidArgument)
 	}
-
 	return &GameService{
 		characters: characters,
 		joinTokens: joinTokens,
@@ -57,7 +56,6 @@ func (s *GameService) ListGameServers(ctx context.Context) ([]domain.GameServer,
 	if s == nil {
 		return nil, domain.ErrInternal
 	}
-
 	return s.servers.ListGameServers(ctx)
 }
 
@@ -72,12 +70,17 @@ func (s *GameService) IssueJoinToken(
 		return IssueJoinTokenResult{}, domain.ErrInternal
 	}
 
-	userID, err := validate.RequiredID("user ID", userID)
+	userID, err := validate.UserID(userID)
 	if err != nil {
 		return IssueJoinTokenResult{}, err
 	}
 
-	characterID, err = validate.RequiredID("character ID", characterID)
+	characterID, err = validate.CharacterID(characterID)
+	if err != nil {
+		return IssueJoinTokenResult{}, err
+	}
+
+	gameServerID, err = validate.OptionalGameServerID(gameServerID)
 	if err != nil {
 		return IssueJoinTokenResult{}, err
 	}
@@ -113,7 +116,6 @@ func (s *GameService) IssueJoinToken(
 		ServerAddr:  server.Addr,
 		ExpiresAt:   now().UTC().Add(cache.DefaultJoinTokenTTL),
 	}
-
 	if err := s.joinTokens.CreateJoinToken(ctx, joinToken); err != nil {
 		return IssueJoinTokenResult{}, err
 	}
@@ -128,16 +130,10 @@ func (s *GameService) IssueJoinToken(
 
 func (s *GameService) selectServer(ctx context.Context, requestedServerID string) (domain.GameServer, error) {
 	if requestedServerID != "" {
-		requestedServerID, err := validate.RequiredID("game server ID", requestedServerID)
-		if err != nil {
-			return domain.GameServer{}, err
-		}
-
 		server, err := s.servers.GetGameServerByID(ctx, requestedServerID)
 		if err != nil {
 			return domain.GameServer{}, err
 		}
-
 		return server, nil
 	}
 

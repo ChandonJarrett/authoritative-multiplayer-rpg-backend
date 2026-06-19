@@ -5,7 +5,6 @@ import (
 
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/db"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/validate"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -23,24 +22,6 @@ func NewCharacterStore(pool *pgxpool.Pool) *CharacterStore {
 func (s *CharacterStore) CreateCharacter(ctx context.Context, character domain.Character) error {
 	if s == nil || s.pool == nil {
 		return db.ErrNilPool
-	}
-
-	if _, err := validate.RequiredID("character ID", character.ID); err != nil {
-		return err
-	}
-
-	if _, err := validate.RequiredID("user ID", character.UserID); err != nil {
-		return err
-	}
-
-	name, err := validate.CharacterName(character.Name)
-	if err != nil {
-		return err
-	}
-
-	mapID, err := validate.RequiredID("map ID", character.MapID)
-	if err != nil {
-		return err
 	}
 
 	const query = `
@@ -63,14 +44,13 @@ func (s *CharacterStore) CreateCharacter(ctx context.Context, character domain.C
             $7
         )
     `
-
-	_, err = s.pool.Exec(
+	_, err := s.pool.Exec(
 		ctx,
 		query,
 		character.ID,
 		character.UserID,
-		name,
-		mapID,
+		character.Name,
+		character.MapID,
 		character.Position.X,
 		character.Position.Y,
 		character.Position.Z,
@@ -88,11 +68,6 @@ func (s *CharacterStore) ListCharactersByUserID(ctx context.Context, userID stri
 		return nil, db.ErrNilPool
 	}
 
-	userID, err := validate.RequiredID("user ID", userID)
-	if err != nil {
-		return nil, err
-	}
-
 	const query = `
         SELECT
             id,
@@ -108,7 +83,6 @@ func (s *CharacterStore) ListCharactersByUserID(ctx context.Context, userID stri
         WHERE user_id = $1
         ORDER BY created_at ASC, id ASC
     `
-
 	rows, err := s.pool.Query(ctx, query, userID)
 	if err != nil {
 		return nil, mapPostgresError(err)
@@ -121,7 +95,6 @@ func (s *CharacterStore) ListCharactersByUserID(ctx context.Context, userID stri
 		if err != nil {
 			return nil, err
 		}
-
 		characters = append(characters, character)
 	}
 
@@ -138,11 +111,6 @@ func (s *CharacterStore) GetCharacterByID(ctx context.Context, characterID strin
 		return domain.Character{}, db.ErrNilPool
 	}
 
-	characterID, err := validate.RequiredID("character ID", characterID)
-	if err != nil {
-		return domain.Character{}, err
-	}
-
 	const query = `
         SELECT
             id,
@@ -157,7 +125,6 @@ func (s *CharacterStore) GetCharacterByID(ctx context.Context, characterID strin
         FROM characters
         WHERE id = $1
     `
-
 	character, err := scanCharacter(s.pool.QueryRow(ctx, query, characterID))
 	if err != nil {
 		return domain.Character{}, err
@@ -166,6 +133,7 @@ func (s *CharacterStore) GetCharacterByID(ctx context.Context, characterID strin
 	return character, nil
 }
 
+// scanCharacter maps a DB row into a domain.Character.
 func scanCharacter(row scanner) (domain.Character, error) {
 	var character domain.Character
 
