@@ -51,12 +51,12 @@ func NewAPIServer(rt *Runtime) (*api.Server, error) {
 		return nil, fmt.Errorf("create cache key builder: %w", err)
 	}
 
-	userStore := postgresstore.NewPostgresUserStore(rt.Postgres)
-	characterStore := postgresstore.NewPostgresCharacterStore(rt.Postgres)
+	userStore := postgresstore.NewUserStore(rt.Postgres)
+	characterStore := postgresstore.NewCharacterStore(rt.Postgres)
 
-	sessionStore := redisstore.NewRedisSessionStore(rt.Redis, keys)
-	joinTokenStore := redisstore.NewRedisJoinTokenStore(rt.Redis, keys)
-	gameServerStore := redisstore.NewRedisGameServerStore(rt.Redis, keys)
+	sessionStore := redisstore.NewSessionStore(rt.Redis, keys)
+	joinTokenStore := redisstore.NewJoinTokenStore(rt.Redis, keys)
+	gameServerStore := redisstore.NewGameServerStore(rt.Redis, keys)
 
 	authService, err := service.NewAuthService(userStore, sessionStore)
 	if err != nil {

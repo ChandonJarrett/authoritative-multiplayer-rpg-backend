@@ -27,8 +27,8 @@ type JoinTokenStore struct {
 	keys   cache.KeyBuilder
 }
 
-// NewRedisJoinTokenStore creates a Redis join-token store.
-func NewRedisJoinTokenStore(client cache.Client, keys cache.KeyBuilder) *JoinTokenStore {
+// NewJoinTokenStore creates a Redis join-token store.
+func NewJoinTokenStore(client cache.Client, keys cache.KeyBuilder) *JoinTokenStore {
 	return &JoinTokenStore{
 		client: client,
 		keys:   keys,

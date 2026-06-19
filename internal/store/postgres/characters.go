@@ -14,8 +14,8 @@ type CharacterStore struct {
 	pool *pgxpool.Pool
 }
 
-// NewPostgresCharacterStore creates a PostgreSQL character store.
-func NewPostgresCharacterStore(pool *pgxpool.Pool) *CharacterStore {
+// NewCharacterStore creates a PostgreSQL character store.
+func NewCharacterStore(pool *pgxpool.Pool) *CharacterStore {
 	return &CharacterStore{pool: pool}
 }
 

@@ -25,8 +25,8 @@ type SessionStore struct {
 	keys   cache.KeyBuilder
 }
 
-// NewRedisSessionStore creates a Redis session store.
-func NewRedisSessionStore(client cache.Client, keys cache.KeyBuilder) SessionStore {
+// NewSessionStore creates a Redis session store.
+func NewSessionStore(client cache.Client, keys cache.KeyBuilder) SessionStore {
 	return SessionStore{
 		client: client,
 		keys:   keys,

@@ -16,8 +16,8 @@ type UserStore struct {
 	pool *pgxpool.Pool
 }
 
-// NewPostgresUserStore creates a PostgreSQL user store.
-func NewPostgresUserStore(pool *pgxpool.Pool) *UserStore {
+// NewUserStore creates a PostgreSQL user store.
+func NewUserStore(pool *pgxpool.Pool) *UserStore {
 	return &UserStore{pool: pool}
 }
 

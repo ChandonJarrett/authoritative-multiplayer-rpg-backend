@@ -26,8 +26,8 @@ type GameServerStore struct {
 	keys   cache.KeyBuilder
 }
 
-// NewRedisGameServerStore creates a Redis game-server store.
-func NewRedisGameServerStore(client cache.Client, keys cache.KeyBuilder) *GameServerStore {
+// NewGameServerStore creates a Redis game-server store.
+func NewGameServerStore(client cache.Client, keys cache.KeyBuilder) *GameServerStore {
 	return &GameServerStore{
 		client: client,
 		keys:   keys,
