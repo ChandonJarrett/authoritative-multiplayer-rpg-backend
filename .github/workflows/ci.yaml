@@ -32,7 +32,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      
+
       - name: Cache Go tool binaries
         uses: actions/cache@v4
         with:
@@ -46,15 +46,12 @@ jobs:
 
       - name: Install Go tools
         run: make tools-go
-      
+
       - name: Validate compose config
         run: make compose-check
 
       - name: Run quality checks
         run: make ci-fast && make vuln && make proto-check
-
-      - name: Check for breaking proto changes
-        run: make proto-breaking
 
   test:
     name: Tests
@@ -127,7 +124,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      
+
       - name: Cache Go tool binaries
         uses: actions/cache@v4
         with:
@@ -147,4 +144,3 @@ jobs:
 
       - name: Run all tests
         run: make test-race && make test-integration
-

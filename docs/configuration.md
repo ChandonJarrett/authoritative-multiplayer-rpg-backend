@@ -15,19 +15,22 @@ Use `.env.example` as your local template, it contains safe defaults for every v
 | `LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 | `LOG_FORMAT` | `text` | `text` / `json` |
 | `API_HTTP_ADDR` | `:8080` | API server bind address |
+| `API_ALLOWED_ORIGINS` | localhost dev ports | Comma-separated CORS allowlist |
 | `GAME_ENET_ADDR` | `:7777` | Game server ENet bind address |
 | `GAME_HTTP_ADDR` | `:8081` | Game server HTTP bind address |
 | `SHUTDOWN_TIMEOUT` | `10s` | Go duration string |
+| `AUTH_RATE_LIMIT_WINDOW` | `1m` | Auth rate-limit window |
+| `AUTH_RATE_LIMIT_BURST` | `10` | Auth requests allowed per window |
 | `POSTGRES_HOST` | `localhost` | `postgres` inside devcontainer |
-| `POSTGRES_PORT` | `5432` | |
-| `POSTGRES_USER` | *(required)* | |
-| `POSTGRES_PASSWORD` | *(required)* | |
-| `POSTGRES_DB` | *(required)* | |
+| `POSTGRES_PORT` | `5432` |  |
+| `POSTGRES_USER` | `postgres` | Local/dev default |
+| `POSTGRES_PASSWORD` | `postgres` | Local/dev default |
+| `POSTGRES_DB` | `rpg` | Local/dev default |
 | `POSTGRES_SSLMODE` | `disable` | `disable` / `require` / `verify-ca` / `verify-full` |
 | `REDIS_HOST` | `localhost` | `redis` inside devcontainer |
-| `REDIS_PORT` | `6379` | |
-| `REDIS_PASSWORD` | *(empty)* | |
-| `REDIS_DB` | `0` | |
+| `REDIS_PORT` | `6379` |  |
+| `REDIS_PASSWORD` | empty |  |
+| `REDIS_DB` | `0` |  |
 
 > Do **not** set `POSTGRES_URL` or `REDIS_ADDR` directly. The application builds these internally from the individual variables above.
 
@@ -43,7 +46,7 @@ Default: `rpg-backend`
 
 ### `APP_ENV`
 
-Runtime environment. Affects test behaviour (`APP_ENV=testing` is required for integration tests).
+Runtime environment. Affects test behaviour. `APP_ENV=testing` is required for integration tests.
 
 Allowed values: `local`, `development`, `testing`, `staging`, `production`
 
@@ -75,23 +78,47 @@ Bind address for the API server HTTP listener.
 
 Default: `:8080`
 
+### `API_ALLOWED_ORIGINS`
+
+Comma-separated list of browser origins allowed by API CORS middleware.
+
+Default: `http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173`
+
 ### `GAME_ENET_ADDR`
 
 Bind address for the game server ENet/UDP listener.
 
 Default: `:7777`
 
+> The ENet simulation plane is still incomplete. This address is reserved for the game transport.
+
 ### `GAME_HTTP_ADDR`
 
-Bind address for the game server HTTP listener (health checks, admin endpoints).
+Bind address for the game server HTTP listener used by health and readiness endpoints.
 
 Default: `:8081`
 
 ### `SHUTDOWN_TIMEOUT`
 
-How long to wait for in-flight work to finish before forcing shutdown. Must be a valid Go duration string (e.g. `500ms`, `10s`, `1m`).
+How long to wait for in-flight work to finish before forcing shutdown. Must be a valid Go duration string, e.g. `500ms`, `10s`, `1m`.
 
 Default: `10s`
+
+---
+
+## Rate limiting
+
+### `AUTH_RATE_LIMIT_WINDOW`
+
+Fixed-window duration used for public auth endpoint rate limiting.
+
+Default: `1m`
+
+### `AUTH_RATE_LIMIT_BURST`
+
+Number of register/login requests allowed by the auth limiter during each window.
+
+Default: `10`
 
 ---
 
@@ -108,15 +135,15 @@ Default: `5432`
 
 ### `POSTGRES_USER`
 
-Required. No default.
+Default: `postgres`
 
 ### `POSTGRES_PASSWORD`
 
-Required. No default.
+Default: `postgres`
 
 ### `POSTGRES_DB`
 
-Required. No default.
+Default: `rpg`
 
 ### `POSTGRES_SSLMODE`
 
@@ -153,11 +180,11 @@ Default: `6379`
 
 ### `REDIS_PASSWORD`
 
-Default: *(empty)*
+Default: empty
 
 ### `REDIS_DB`
 
-Redis database index (0–15).
+Redis database index.
 
 Default: `0`
 

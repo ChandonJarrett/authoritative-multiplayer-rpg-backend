@@ -2,16 +2,40 @@
 
 The game server owns the authoritative real-time simulation. Clients are untrusted input sources, they never directly mutate state.
 
+The current implementation has the game server lifecycle shell in place: it starts runtime dependencies, exposes HTTP health/readiness endpoints, registers itself in Redis, renews its registry heartbeat, and shuts down gracefully. The ENet host and simulation loops are still incomplete.
+
 ---
 
-## Request-response loop
+## Current lifecycle
 
+```text
+1. Load and validate config
+2. Initialize structured logger
+3. Set up signal-aware context
+4. Connect to PostgreSQL
+5. Connect to Redis
+6. Create Redis key builder
+7. Start game server HTTP health/readiness endpoint on GAME_HTTP_ADDR
+8. Register game server in Redis with TTL
+9. Renew game server registry heartbeat until shutdown
+10. Wait for shutdown signal
+11. Stop HTTP server
+12. Deregister game server from Redis
+13. Close Redis
+14. Close PostgreSQL
+15. Exit
 ```
-1. Client sends an InputPacket (unreliable ENet channel 1)
+
+---
+
+## Planned request-response loop
+
+```text
+1. Client sends an InputPacket, unreliable ENet channel 1
 2. Server validates the input
 3. Server applies valid input during the next simulation tick
 4. Server updates authoritative world state
-5. Server broadcasts SnapshotPacket to all clients (unreliable channel 1)
+5. Server broadcasts SnapshotPacket to all clients, unreliable channel 1
 6. Clients interpolate between snapshots for smooth rendering
 ```
 
@@ -56,6 +80,8 @@ The game server avoids per-frame PostgreSQL writes. Durable saves happen only at
 
 ## Join handshake
 
-Clients connect via ENet and send a `JoinRequest` (reliable channel 0) containing a short-lived join token issued by the API server and a `character_id`. The game server validates the token, acquires a character lock in Redis, and responds with `JoinResponse`.
+Clients connect via ENet and send a `JoinRequest`, reliable channel 0, containing a short-lived join token issued by the API server and a `character_id`. The game server validates the token, acquires a character lock in Redis, and responds with `JoinResponse`.
 
 If validation fails, the client receives an error reason and is disconnected.
+
+> This handshake is the intended design. Join-token redemption, lock acquisition in the live join path, and ENet connection handling are not complete yet.

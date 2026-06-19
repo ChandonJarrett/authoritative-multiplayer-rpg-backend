@@ -9,10 +9,12 @@ The backend uses two stores intentionally. Each is used only for what it is best
 PostgreSQL is the source of truth for anything that must survive a process restart.
 
 **Current schema:**
+
 - `users`: id (UUID), email (citext, unique), password_hash
 - `characters`: id (UUID), user_id (FK -> users), name (citext), map_id, position (x/y/z), timestamps
 
 **Future:**
+
 - Inventory
 - Quests and progression
 - Economy data
@@ -29,10 +31,11 @@ Redis stores short-lived state. All keys should have TTLs unless there is a deli
 |---|---|---|
 | Join token | 60 s | Single-use token for game server handoff |
 | Session | 2 h | Active authenticated session |
-| User sessions | 2 h | Set of session IDs for a user (for broadcast) |
-| Server | 10 s | Game server registry entry (renewed by heartbeat) |
+| User sessions | 2 h | Set of session IDs for a user, used for revocation and future broadcast-style workflows |
+| Server | 10 s | Game server registry entry, renewed by heartbeat |
 | Server sessions | ... | Sessions active on a specific game server |
 | Character lock | 20 s | Prevents the same character loading on two servers |
+| Rate limit | Configured window | Fixed-window auth abuse protection |
 
 A game server that crashes deregisters itself automatically when its 10 s TTL expires, no external cleanup required.
 
@@ -47,16 +50,18 @@ All Redis keys are built through `internal/cache.KeyBuilder`, never constructed 
 **Format:** `{app}:{env}:{type}:{id}`
 
 **Examples:**
-```
+
+```text
 rpg-backend:production:session:abc123
 rpg-backend:production:join_token:xyz789
 rpg-backend:production:character_lock:char-uuid
 rpg-backend:production:server:game-server-1
+rpg-backend:production:rate_limit:/rpg.v1.AuthService/Login:127.0.0.1
 ```
 
-The `{app}:{env}` prefix prevents key collisions between environments sharing a Redis instance (e.g. `staging` and `production`).
+The `{app}:{env}` prefix prevents key collisions between environments sharing a Redis instance, e.g. `staging` and `production`.
 
-`KeyBuilder` validates all segments at construction time; empty values, colons, and whitespace are rejected.
+`KeyBuilder` validates all segments at construction time. Empty values, colons, and whitespace are rejected.
 
 ---
 
@@ -64,16 +69,17 @@ The `{app}:{env}` prefix prevents key collisions between environments sharing a 
 
 Migration files live in `migrations/` and follow the `golang-migrate` naming convention:
 
-```
+```text
 NNN_description.up.sql
 NNN_description.down.sql
 ```
 
 **Rules:**
+
 - Every migration must have a matching rollback.
 - Migrations should be small and independently reviewable.
-- Destructive rollbacks (dropping tables, columns) must be explicit.
-- Shared database objects (functions, extensions) go in `000_shared` so later migrations can depend on them.
+- Destructive rollbacks, dropping tables or columns, must be explicit.
+- Shared database objects, functions and extensions, go in `000_shared` so later migrations can depend on them.
 
 **Current migrations:**
 
