@@ -34,27 +34,27 @@ return 0
 // Acquire uses SET NX with TTL.
 // Renew and Release are owner-checked with Lua so one server cannot release another server's lock.
 type CharacterLockStore struct {
-	redis cache.Client
-	keys  cache.KeyBuilder
+	client cache.Client
+	keys   cache.KeyBuilder
 }
 
 // NewCharacterLockStore creates a Redis-backed character lock store.
-func NewCharacterLockStore(redis cache.Client, keys cache.KeyBuilder) CharacterLockStore {
-	return CharacterLockStore{
-		redis: redis,
-		keys:  keys,
+func NewCharacterLockStore(client cache.Client, keys cache.KeyBuilder) *CharacterLockStore {
+	return &CharacterLockStore{
+		client: client,
+		keys:   keys,
 	}
 }
 
 // AcquireCharacterLock attempts to acquire a character lock for ownerID.
 // It returns false when the character is already locked by another owner.
-func (s CharacterLockStore) AcquireCharacterLock(
+func (s *CharacterLockStore) AcquireCharacterLock(
 	ctx context.Context,
 	characterID string,
 	ownerID string,
 	ttl time.Duration,
 ) (bool, error) {
-	if s.redis == nil {
+	if s == nil || s.client == nil {
 		return false, domain.ErrUnavailable
 	}
 
@@ -77,7 +77,7 @@ func (s CharacterLockStore) AcquireCharacterLock(
 		return false, redisKeyError("build character lock key", err)
 	}
 
-	locked, err := s.redis.SetNX(ctx, key, ownerID, ttl).Result()
+	locked, err := s.client.SetNX(ctx, key, ownerID, ttl).Result()
 	if err != nil {
 		return false, redisUnavailable("acquire character lock", err)
 	}
@@ -86,13 +86,13 @@ func (s CharacterLockStore) AcquireCharacterLock(
 }
 
 // RenewCharacterLock extends a lock only if ownerID still owns it.
-func (s CharacterLockStore) RenewCharacterLock(
+func (s *CharacterLockStore) RenewCharacterLock(
 	ctx context.Context,
 	characterID string,
 	ownerID string,
 	ttl time.Duration,
 ) (bool, error) {
-	if s.redis == nil {
+	if s == nil || s.client == nil {
 		return false, domain.ErrUnavailable
 	}
 
@@ -115,7 +115,7 @@ func (s CharacterLockStore) RenewCharacterLock(
 		return false, redisKeyError("build character lock key", err)
 	}
 
-	result, err := s.redis.Eval(
+	result, err := s.client.Eval(
 		ctx,
 		renewCharacterLockScript,
 		[]string{key},
@@ -130,12 +130,12 @@ func (s CharacterLockStore) RenewCharacterLock(
 }
 
 // ReleaseCharacterLock releases a lock only if ownerID still owns it.
-func (s CharacterLockStore) ReleaseCharacterLock(
+func (s *CharacterLockStore) ReleaseCharacterLock(
 	ctx context.Context,
 	characterID string,
 	ownerID string,
 ) (bool, error) {
-	if s.redis == nil {
+	if s == nil || s.client == nil {
 		return false, domain.ErrUnavailable
 	}
 
@@ -154,7 +154,7 @@ func (s CharacterLockStore) ReleaseCharacterLock(
 		return false, redisKeyError("build character lock key", err)
 	}
 
-	result, err := s.redis.Eval(
+	result, err := s.client.Eval(
 		ctx,
 		releaseCharacterLockScript,
 		[]string{key},
@@ -168,8 +168,8 @@ func (s CharacterLockStore) ReleaseCharacterLock(
 }
 
 // GetCharacterLockOwner returns the current lock owner.
-func (s CharacterLockStore) GetCharacterLockOwner(ctx context.Context, characterID string) (string, error) {
-	if s.redis == nil {
+func (s *CharacterLockStore) GetCharacterLockOwner(ctx context.Context, characterID string) (string, error) {
+	if s == nil || s.client == nil {
 		return "", domain.ErrUnavailable
 	}
 
@@ -183,7 +183,7 @@ func (s CharacterLockStore) GetCharacterLockOwner(ctx context.Context, character
 		return "", redisKeyError("build character lock key", err)
 	}
 
-	ownerID, err := s.redis.Get(ctx, key).Result()
+	ownerID, err := s.client.Get(ctx, key).Result()
 	if errors.Is(err, goredis.Nil) {
 		return "", domain.ErrNotFound
 	}
