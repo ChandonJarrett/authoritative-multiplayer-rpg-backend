@@ -4,7 +4,6 @@ package redis
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/cache"
@@ -63,7 +62,7 @@ func NewSessionStore(client cache.Client, keys cache.KeyBuilder) *SessionStore {
 // CreateSession creates a session and indexes it by user in one Redis script.
 func (s *SessionStore) CreateSession(ctx context.Context, sessionID, userID string) error {
 	if s == nil || s.client == nil {
-		return cache.ErrNilClient
+		return domain.ErrUnavailable
 	}
 
 	sessionID, err := validate.RequiredID("session ID", sessionID)
@@ -78,12 +77,12 @@ func (s *SessionStore) CreateSession(ctx context.Context, sessionID, userID stri
 
 	sessionKey, err := s.keys.Session(sessionID)
 	if err != nil {
-		return fmt.Errorf("build session key: %w", err)
+		return redisKeyError("build session key", err)
 	}
 
 	userSessionsKey, err := s.keys.UserSessions(userID)
 	if err != nil {
-		return fmt.Errorf("build user sessions key: %w", err)
+		return redisKeyError("build user sessions key", err)
 	}
 
 	ttl := s.ttl
@@ -99,7 +98,7 @@ func (s *SessionStore) CreateSession(ctx context.Context, sessionID, userID stri
 		ttl.Milliseconds(),
 		sessionID,
 	).Err(); err != nil {
-		return fmt.Errorf("create session: %w", err)
+		return redisUnavailable("create session", err)
 	}
 
 	return nil
@@ -108,7 +107,7 @@ func (s *SessionStore) CreateSession(ctx context.Context, sessionID, userID stri
 // GetSessionUserID returns the user ID that owns a session.
 func (s *SessionStore) GetSessionUserID(ctx context.Context, sessionID string) (string, error) {
 	if s == nil || s.client == nil {
-		return "", cache.ErrNilClient
+		return "", domain.ErrUnavailable
 	}
 
 	sessionID, err := validate.RequiredID("session ID", sessionID)
@@ -118,7 +117,7 @@ func (s *SessionStore) GetSessionUserID(ctx context.Context, sessionID string) (
 
 	sessionKey, err := s.keys.Session(sessionID)
 	if err != nil {
-		return "", fmt.Errorf("build session key: %w", err)
+		return "", redisKeyError("build session key", err)
 	}
 
 	userID, err := s.client.Get(ctx, sessionKey).Result()
@@ -126,7 +125,7 @@ func (s *SessionStore) GetSessionUserID(ctx context.Context, sessionID string) (
 		return "", domain.ErrUnauthenticated
 	}
 	if err != nil {
-		return "", fmt.Errorf("get session: %w", err)
+		return "", redisUnavailable("get session", err)
 	}
 
 	userID, err = validate.RequiredID("user ID", userID)
@@ -140,7 +139,7 @@ func (s *SessionStore) GetSessionUserID(ctx context.Context, sessionID string) (
 // DeleteSession deletes one session and removes it from the owning user's session index.
 func (s *SessionStore) DeleteSession(ctx context.Context, sessionID string) error {
 	if s == nil || s.client == nil {
-		return cache.ErrNilClient
+		return domain.ErrUnavailable
 	}
 
 	sessionID, err := validate.RequiredID("session ID", sessionID)
@@ -150,7 +149,7 @@ func (s *SessionStore) DeleteSession(ctx context.Context, sessionID string) erro
 
 	sessionKey, err := s.keys.Session(sessionID)
 	if err != nil {
-		return fmt.Errorf("build session key: %w", err)
+		return redisKeyError("build session key", err)
 	}
 
 	userID, err := s.GetSessionUserID(ctx, sessionID)
@@ -163,7 +162,7 @@ func (s *SessionStore) DeleteSession(ctx context.Context, sessionID string) erro
 
 	userSessionsKey, err := s.keys.UserSessions(userID)
 	if err != nil {
-		return fmt.Errorf("build user sessions key: %w", err)
+		return redisKeyError("build user sessions key", err)
 	}
 
 	if err := s.client.Eval(
@@ -172,16 +171,16 @@ func (s *SessionStore) DeleteSession(ctx context.Context, sessionID string) erro
 		[]string{sessionKey, userSessionsKey},
 		sessionID,
 	).Err(); err != nil {
-		return fmt.Errorf("delete session: %w", err)
+		return redisUnavailable("delete session", err)
 	}
 
 	return nil
 }
 
-// DeleteUserSessions deletes every known session for a user.
+// DeleteUserSessions deletes all sessions known for one user.
 func (s *SessionStore) DeleteUserSessions(ctx context.Context, userID string) error {
 	if s == nil || s.client == nil {
-		return cache.ErrNilClient
+		return domain.ErrUnavailable
 	}
 
 	userID, err := validate.RequiredID("user ID", userID)
@@ -191,7 +190,11 @@ func (s *SessionStore) DeleteUserSessions(ctx context.Context, userID string) er
 
 	userSessionsKey, err := s.keys.UserSessions(userID)
 	if err != nil {
-		return fmt.Errorf("build user sessions key: %w", err)
+		return redisKeyError("build user sessions key", err)
+	}
+
+	if s.keys.Prefix() == "" {
+		return redisKeyError("build session prefix", cache.ErrEmptyPrefix)
 	}
 
 	sessionPrefix := s.keys.Prefix() + ":session:"
@@ -202,7 +205,7 @@ func (s *SessionStore) DeleteUserSessions(ctx context.Context, userID string) er
 		[]string{userSessionsKey},
 		sessionPrefix,
 	).Err(); err != nil {
-		return fmt.Errorf("delete user sessions: %w", err)
+		return redisUnavailable("delete user sessions", err)
 	}
 
 	return nil

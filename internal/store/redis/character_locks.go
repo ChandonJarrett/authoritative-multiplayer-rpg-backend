@@ -3,7 +3,6 @@ package redis
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -75,12 +74,12 @@ func (s CharacterLockStore) AcquireCharacterLock(
 
 	key, err := s.keys.CharacterLock(characterID)
 	if err != nil {
-		return false, fmt.Errorf("build character lock key: %w", err)
+		return false, redisKeyError("build character lock key", err)
 	}
 
 	locked, err := s.redis.SetNX(ctx, key, ownerID, ttl).Result()
 	if err != nil {
-		return false, fmt.Errorf("acquire character lock: %w", err)
+		return false, redisUnavailable("acquire character lock", err)
 	}
 
 	return locked, nil
@@ -113,7 +112,7 @@ func (s CharacterLockStore) RenewCharacterLock(
 
 	key, err := s.keys.CharacterLock(characterID)
 	if err != nil {
-		return false, fmt.Errorf("build character lock key: %w", err)
+		return false, redisKeyError("build character lock key", err)
 	}
 
 	result, err := s.redis.Eval(
@@ -124,7 +123,7 @@ func (s CharacterLockStore) RenewCharacterLock(
 		strconv.FormatInt(ttl.Milliseconds(), 10),
 	).Result()
 	if err != nil {
-		return false, fmt.Errorf("renew character lock: %w", err)
+		return false, redisUnavailable("renew character lock", err)
 	}
 
 	return redisTruthy(result), nil
@@ -152,7 +151,7 @@ func (s CharacterLockStore) ReleaseCharacterLock(
 
 	key, err := s.keys.CharacterLock(characterID)
 	if err != nil {
-		return false, fmt.Errorf("build character lock key: %w", err)
+		return false, redisKeyError("build character lock key", err)
 	}
 
 	result, err := s.redis.Eval(
@@ -162,7 +161,7 @@ func (s CharacterLockStore) ReleaseCharacterLock(
 		ownerID,
 	).Result()
 	if err != nil {
-		return false, fmt.Errorf("release character lock: %w", err)
+		return false, redisUnavailable("release character lock", err)
 	}
 
 	return redisTruthy(result), nil
@@ -181,7 +180,7 @@ func (s CharacterLockStore) GetCharacterLockOwner(ctx context.Context, character
 
 	key, err := s.keys.CharacterLock(characterID)
 	if err != nil {
-		return "", fmt.Errorf("build character lock key: %w", err)
+		return "", redisKeyError("build character lock key", err)
 	}
 
 	ownerID, err := s.redis.Get(ctx, key).Result()
@@ -189,7 +188,12 @@ func (s CharacterLockStore) GetCharacterLockOwner(ctx context.Context, character
 		return "", domain.ErrNotFound
 	}
 	if err != nil {
-		return "", fmt.Errorf("get character lock owner: %w", err)
+		return "", redisUnavailable("get character lock owner", err)
+	}
+
+	ownerID, err = validate.RequiredID("lock owner ID", ownerID)
+	if err != nil {
+		return "", domain.ErrNotFound
 	}
 
 	return ownerID, nil

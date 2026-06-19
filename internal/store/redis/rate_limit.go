@@ -23,7 +23,7 @@ type RateLimiter struct {
 // NewRateLimiter creates a Redis-backed fixed-window limiter.
 func NewRateLimiter(client cache.Client, keys cache.KeyBuilder, window time.Duration, limit int) (*RateLimiter, error) {
 	if client == nil {
-		return nil, cache.ErrNilClient
+		return nil, domain.ErrUnavailable
 	}
 	if window <= 0 {
 		return nil, fmt.Errorf("rate limit window must be > 0: %w", domain.ErrInvalidArgument)
@@ -43,7 +43,7 @@ func NewRateLimiter(client cache.Client, keys cache.KeyBuilder, window time.Dura
 // Allow returns true if key is still within the configured limit.
 func (l *RateLimiter) Allow(ctx context.Context, key string) (bool, error) {
 	if l == nil || l.client == nil {
-		return false, cache.ErrNilClient
+		return false, domain.ErrUnavailable
 	}
 
 	key = sanitizeRateLimitKey(key)
@@ -58,12 +58,12 @@ func (l *RateLimiter) Allow(ctx context.Context, key string) (bool, error) {
 
 	count, err := l.client.Incr(ctx, redisKey).Result()
 	if err != nil {
-		return false, fmt.Errorf("increment rate limit: %w", err)
+		return false, redisUnavailable("increment rate limit", err)
 	}
 
 	if count == 1 {
 		if err := l.client.Expire(ctx, redisKey, l.window).Err(); err != nil {
-			return false, fmt.Errorf("expire rate limit: %w", err)
+			return false, redisUnavailable("expire rate limit", err)
 		}
 	}
 
@@ -71,8 +71,18 @@ func (l *RateLimiter) Allow(ctx context.Context, key string) (bool, error) {
 }
 
 func (l *RateLimiter) redisKey(key string) (string, error) {
-	bucket := l.now().UTC().Unix() / int64(l.window.Seconds())
-	return l.keys.RateLimit("auth", key, strconv.FormatInt(bucket, 10))
+	now := l.now
+	if now == nil {
+		now = time.Now
+	}
+
+	bucket := now().UTC().UnixNano() / l.window.Nanoseconds()
+	redisKey, err := l.keys.RateLimit("auth", key, strconv.FormatInt(bucket, 10))
+	if err != nil {
+		return "", redisKeyError("build rate limit key", err)
+	}
+
+	return redisKey, nil
 }
 
 func sanitizeRateLimitKey(key string) string {

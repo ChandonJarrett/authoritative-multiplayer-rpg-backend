@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sort"
 	"time"
 
@@ -37,7 +36,7 @@ func NewGameServerStore(client cache.Client, keys cache.KeyBuilder) *GameServerS
 // RegisterGameServer registers or refreshes a game server heartbeat.
 func (s *GameServerStore) RegisterGameServer(ctx context.Context, server domain.GameServer) error {
 	if s == nil || s.client == nil {
-		return cache.ErrNilClient
+		return domain.ErrUnavailable
 	}
 
 	serverID, err := validate.RequiredID("server ID", server.ID)
@@ -52,12 +51,12 @@ func (s *GameServerStore) RegisterGameServer(ctx context.Context, server domain.
 
 	serverKey, err := s.keys.Server(serverID)
 	if err != nil {
-		return fmt.Errorf("build server key: %w", err)
+		return redisKeyError("build server key", err)
 	}
 
 	indexKey, err := s.keys.ServersIndex()
 	if err != nil {
-		return fmt.Errorf("build servers index key: %w", err)
+		return redisKeyError("build servers index key", err)
 	}
 
 	payload := gameServerPayload{
@@ -68,19 +67,19 @@ func (s *GameServerStore) RegisterGameServer(ctx context.Context, server domain.
 
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("marshal game server: %w", err)
+		return redisInternal("marshal game server", err)
 	}
 
 	if err := s.client.Set(ctx, serverKey, data, cache.DefaultServerTTL).Err(); err != nil {
-		return fmt.Errorf("register game server: %w", err)
+		return redisUnavailable("register game server", err)
 	}
 
 	if err := s.client.SAdd(ctx, indexKey, serverID).Err(); err != nil {
-		return fmt.Errorf("index game server: %w", err)
+		return redisUnavailable("index game server", err)
 	}
 
 	if err := s.client.Expire(ctx, indexKey, cache.DefaultServerTTL).Err(); err != nil {
-		return fmt.Errorf("expire game server index: %w", err)
+		return redisUnavailable("expire game server index", err)
 	}
 
 	return nil
@@ -90,7 +89,7 @@ func (s *GameServerStore) RegisterGameServer(ctx context.Context, server domain.
 // The servers index has a TTL and will naturally expire if no servers refresh it.
 func (s *GameServerStore) DeregisterGameServer(ctx context.Context, serverID string) error {
 	if s == nil || s.client == nil {
-		return cache.ErrNilClient
+		return domain.ErrUnavailable
 	}
 
 	serverID, err := validate.RequiredID("server ID", serverID)
@@ -100,11 +99,11 @@ func (s *GameServerStore) DeregisterGameServer(ctx context.Context, serverID str
 
 	serverKey, err := s.keys.Server(serverID)
 	if err != nil {
-		return fmt.Errorf("build server key: %w", err)
+		return redisKeyError("build server key", err)
 	}
 
 	if err := s.client.Del(ctx, serverKey).Err(); err != nil {
-		return fmt.Errorf("deregister game server: %w", err)
+		return redisUnavailable("deregister game server", err)
 	}
 
 	return nil
@@ -113,17 +112,17 @@ func (s *GameServerStore) DeregisterGameServer(ctx context.Context, serverID str
 // ListGameServers returns currently visible game servers.
 func (s *GameServerStore) ListGameServers(ctx context.Context) ([]domain.GameServer, error) {
 	if s == nil || s.client == nil {
-		return nil, cache.ErrNilClient
+		return nil, domain.ErrUnavailable
 	}
 
 	indexKey, err := s.keys.ServersIndex()
 	if err != nil {
-		return nil, fmt.Errorf("build servers index key: %w", err)
+		return nil, redisKeyError("build servers index key", err)
 	}
 
 	serverIDs, err := s.client.SMembers(ctx, indexKey).Result()
 	if err != nil {
-		return nil, fmt.Errorf("list game server IDs: %w", err)
+		return nil, redisUnavailable("list game server IDs", err)
 	}
 
 	servers := make([]domain.GameServer, 0, len(serverIDs))
@@ -138,7 +137,6 @@ func (s *GameServerStore) ListGameServers(ctx context.Context) ([]domain.GameSer
 			if errors.Is(err, domain.ErrNotFound) {
 				continue
 			}
-
 			return nil, err
 		}
 
@@ -155,7 +153,7 @@ func (s *GameServerStore) ListGameServers(ctx context.Context) ([]domain.GameSer
 // GetGameServerByID returns the game server details by ID.
 func (s *GameServerStore) GetGameServerByID(ctx context.Context, serverID string) (domain.GameServer, error) {
 	if s == nil || s.client == nil {
-		return domain.GameServer{}, cache.ErrNilClient
+		return domain.GameServer{}, domain.ErrUnavailable
 	}
 
 	serverID, err := validate.RequiredID("server ID", serverID)
@@ -174,27 +172,25 @@ func (s *GameServerStore) GetGameServerByID(ctx context.Context, serverID string
 func (s *GameServerStore) getGameServer(ctx context.Context, serverID string) (domain.GameServer, error) {
 	serverKey, err := s.keys.Server(serverID)
 	if err != nil {
-		return domain.GameServer{}, fmt.Errorf("build server key: %w", err)
+		return domain.GameServer{}, redisKeyError("build server key", err)
 	}
 
 	raw, err := s.client.Get(ctx, serverKey).Result()
+	if errors.Is(err, goredis.Nil) {
+		return domain.GameServer{}, domain.ErrNotFound
+	}
 	if err != nil {
-		if errors.Is(err, goredis.Nil) {
-			return domain.GameServer{}, domain.ErrNotFound
-		}
-
-		return domain.GameServer{}, fmt.Errorf("get game server: %w", err)
+		return domain.GameServer{}, redisUnavailable("get game server", err)
 	}
 
 	var payload gameServerPayload
 	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
-		return domain.GameServer{}, fmt.Errorf("decode game server: %w", err)
+		return domain.GameServer{}, redisUnavailable("decode game server", err)
 	}
 
 	if _, err := validate.RequiredID("server ID", payload.ID); err != nil {
 		return domain.GameServer{}, domain.ErrNotFound
 	}
-
 	if _, err := validate.RequiredID("server address", payload.Addr); err != nil {
 		return domain.GameServer{}, domain.ErrNotFound
 	}

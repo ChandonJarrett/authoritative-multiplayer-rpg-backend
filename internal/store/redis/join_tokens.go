@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/cache"
@@ -38,7 +37,7 @@ func NewJoinTokenStore(client cache.Client, keys cache.KeyBuilder) *JoinTokenSto
 // CreateJoinToken stores a short-lived join token.
 func (s *JoinTokenStore) CreateJoinToken(ctx context.Context, token domain.JoinToken) error {
 	if s == nil || s.client == nil {
-		return cache.ErrNilClient
+		return domain.ErrUnavailable
 	}
 
 	tokenID, err := validate.RequiredID("join token", token.Token)
@@ -68,7 +67,7 @@ func (s *JoinTokenStore) CreateJoinToken(ctx context.Context, token domain.JoinT
 
 	key, err := s.keys.JoinToken(tokenID)
 	if err != nil {
-		return fmt.Errorf("build join-token key: %w", err)
+		return redisKeyError("build join-token key", err)
 	}
 
 	payload := joinTokenPayload{
@@ -81,20 +80,20 @@ func (s *JoinTokenStore) CreateJoinToken(ctx context.Context, token domain.JoinT
 
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("marshal join token: %w", err)
+		return redisInternal("marshal join token", err)
 	}
 
 	if err := s.client.Set(ctx, key, data, cache.DefaultJoinTokenTTL).Err(); err != nil {
-		return fmt.Errorf("create join token: %w", err)
+		return redisUnavailable("create join token", err)
 	}
 
 	return nil
 }
 
-// ConsumeJoinToken atomically reads and deletes a join token.
+// ConsumeJoinToken atomically returns and deletes a join token.
 func (s *JoinTokenStore) ConsumeJoinToken(ctx context.Context, token string) (domain.JoinToken, error) {
 	if s == nil || s.client == nil {
-		return domain.JoinToken{}, cache.ErrNilClient
+		return domain.JoinToken{}, domain.ErrUnavailable
 	}
 
 	tokenID, err := validate.RequiredID("join token", token)
@@ -104,21 +103,33 @@ func (s *JoinTokenStore) ConsumeJoinToken(ctx context.Context, token string) (do
 
 	key, err := s.keys.JoinToken(tokenID)
 	if err != nil {
-		return domain.JoinToken{}, fmt.Errorf("build join-token key: %w", err)
+		return domain.JoinToken{}, redisKeyError("build join-token key", err)
 	}
 
 	raw, err := s.client.GetDel(ctx, key).Result()
+	if errors.Is(err, goredis.Nil) {
+		return domain.JoinToken{}, domain.ErrUnauthenticated
+	}
 	if err != nil {
-		if errors.Is(err, goredis.Nil) {
-			return domain.JoinToken{}, domain.ErrUnauthenticated
-		}
-
-		return domain.JoinToken{}, fmt.Errorf("consume join token: %w", err)
+		return domain.JoinToken{}, redisUnavailable("consume join token", err)
 	}
 
 	var payload joinTokenPayload
 	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
-		return domain.JoinToken{}, fmt.Errorf("decode join token: %w", err)
+		return domain.JoinToken{}, domain.ErrUnauthenticated
+	}
+
+	if _, err := validate.RequiredID("user ID", payload.UserID); err != nil {
+		return domain.JoinToken{}, domain.ErrUnauthenticated
+	}
+	if _, err := validate.RequiredID("character ID", payload.CharacterID); err != nil {
+		return domain.JoinToken{}, domain.ErrUnauthenticated
+	}
+	if _, err := validate.RequiredID("server ID", payload.ServerID); err != nil {
+		return domain.JoinToken{}, domain.ErrUnauthenticated
+	}
+	if _, err := validate.RequiredID("server address", payload.ServerAddr); err != nil {
+		return domain.JoinToken{}, domain.ErrUnauthenticated
 	}
 
 	return domain.JoinToken{
