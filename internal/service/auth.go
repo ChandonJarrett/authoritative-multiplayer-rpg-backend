@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -12,6 +13,8 @@ import (
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/validate"
 )
+
+const fakePasswordHash = "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 // AuthService owns registration, login, and session revocation.
 type AuthService struct {
@@ -33,6 +36,7 @@ func NewAuthService(users store.UserStore, sessions store.SessionStore) (*AuthSe
 	if sessions == nil {
 		return nil, fmt.Errorf("session store is required: %w", domain.ErrInvalidArgument)
 	}
+
 	return &AuthService{
 		users:    users,
 		sessions: sessions,
@@ -84,12 +88,16 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (AuthRe
 	}
 
 	user, err := s.users.GetUserByEmail(ctx, email)
+	if errors.Is(err, domain.ErrNotFound) {
+		_ = auth.VerifyPassword(fakePasswordHash, password)
+		return AuthResult{}, domain.ErrUnauthenticated
+	}
 	if err != nil {
 		return AuthResult{}, err
 	}
 
 	if err := auth.VerifyPassword(user.PasswordHash, password); err != nil {
-		return AuthResult{}, err
+		return AuthResult{}, domain.ErrUnauthenticated
 	}
 
 	return s.createSession(ctx, user.ID)

@@ -7,7 +7,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
-	redisstore "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store/redis"
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store"
 )
 
 // PublicProcedures returns RPC procedures that do not require authentication.
@@ -20,7 +20,7 @@ func PublicProcedures() map[string]struct{} {
 }
 
 // NewAuthInterceptor validates bearer sessions and attaches the authenticated user to context.
-func NewAuthInterceptor(sessions redisstore.SessionStore, publicMethods ...map[string]struct{}) connect.UnaryInterceptorFunc {
+func NewAuthInterceptor(sessions store.SessionStore, publicMethods ...map[string]struct{}) connect.UnaryInterceptorFunc {
 	public := PublicProcedures()
 	if len(publicMethods) > 0 && publicMethods[0] != nil {
 		public = publicMethods[0]
@@ -30,6 +30,10 @@ func NewAuthInterceptor(sessions redisstore.SessionStore, publicMethods ...map[s
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
 			if _, ok := public[req.Spec().Procedure]; ok {
 				return next(ctx, req)
+			}
+
+			if sessions == nil {
+				return nil, ToConnectError(domain.ErrUnavailable)
 			}
 
 			token, err := BearerToken(req.Header().Get("Authorization"))
@@ -50,14 +54,17 @@ func NewAuthInterceptor(sessions redisstore.SessionStore, publicMethods ...map[s
 
 // BearerToken extracts a bearer token from an Authorization header.
 func BearerToken(header string) (string, error) {
-	const prefix = "Bearer "
-
-	if !strings.HasPrefix(header, prefix) {
+	scheme, value, ok := strings.Cut(strings.TrimSpace(header), " ")
+	if !ok {
 		return "", domain.ErrUnauthenticated
 	}
 
-	token := strings.TrimSpace(strings.TrimPrefix(header, prefix))
-	if token == "" {
+	if !strings.EqualFold(scheme, "Bearer") {
+		return "", domain.ErrUnauthenticated
+	}
+
+	token := strings.TrimSpace(value)
+	if token == "" || strings.ContainsAny(token, " \t\r\n") {
 		return "", domain.ErrUnauthenticated
 	}
 

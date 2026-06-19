@@ -75,13 +75,36 @@ func NewAuthRateLimitInterceptor(cfg RateLimitConfig) connect.UnaryInterceptorFu
 }
 
 func defaultRateLimitKey(_ context.Context, req connect.AnyRequest) string {
+	if value := forwardedFor(req.Header().Get("Forwarded")); value != "" {
+		return value
+	}
+
 	for _, header := range []string{"X-Forwarded-For", "X-Real-IP"} {
 		value := req.Header().Get(header)
 		if value != "" {
 			return firstForwardedIP(value)
 		}
 	}
+
 	return "anonymous"
+}
+
+func forwardedFor(value string) string {
+	parts := strings.Split(value, ";")
+	for _, part := range parts {
+		key, raw, ok := strings.Cut(strings.TrimSpace(part), "=")
+		if !ok || !strings.EqualFold(key, "for") {
+			continue
+		}
+
+		raw = strings.Trim(raw, `"`)
+		raw = strings.TrimSpace(raw)
+		if raw != "" {
+			return raw
+		}
+	}
+
+	return ""
 }
 
 func firstForwardedIP(value string) string {

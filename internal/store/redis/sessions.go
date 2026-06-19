@@ -3,7 +3,6 @@ package redis
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -14,28 +13,56 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 )
 
-type sessionPayload struct {
-	UserID    string    `json:"user_id"`
-	ExpiresAt time.Time `json:"expires_at"`
-}
+const createSessionScript = `
+redis.call("SET", KEYS[1], ARGV[1], "PX", ARGV[2])
+redis.call("SADD", KEYS[2], ARGV[3])
+redis.call("PEXPIRE", KEYS[2], ARGV[2])
+return 1
+`
+
+const deleteSessionScript = `
+local user_id = redis.call("GET", KEYS[1])
+if not user_id then
+    return 0
+end
+
+redis.call("DEL", KEYS[1])
+redis.call("SREM", KEYS[2], ARGV[1])
+return 1
+`
+
+const deleteUserSessionsScript = `
+local session_ids = redis.call("SMEMBERS", KEYS[1])
+for _, session_id in ipairs(session_ids) do
+    redis.call("DEL", ARGV[1] .. session_id)
+end
+
+redis.call("DEL", KEYS[1])
+return #session_ids
+`
 
 // SessionStore stores authenticated sessions in Redis.
+//
+// Session keys store the owning user ID directly.
+// User-session set keys track all session IDs for bulk revocation.
 type SessionStore struct {
 	client cache.Client
 	keys   cache.KeyBuilder
+	ttl    time.Duration
 }
 
 // NewSessionStore creates a Redis session store.
-func NewSessionStore(client cache.Client, keys cache.KeyBuilder) SessionStore {
-	return SessionStore{
+func NewSessionStore(client cache.Client, keys cache.KeyBuilder) *SessionStore {
+	return &SessionStore{
 		client: client,
 		keys:   keys,
+		ttl:    cache.DefaultSessionTTL,
 	}
 }
 
-// CreateSession stores a session token with a TTL and indexes it by user.
-func (s SessionStore) CreateSession(ctx context.Context, sessionID, userID string) error {
-	if s.client == nil {
+// CreateSession creates a session and indexes it by user in one Redis script.
+func (s *SessionStore) CreateSession(ctx context.Context, sessionID, userID string) error {
+	if s == nil || s.client == nil {
 		return cache.ErrNilClient
 	}
 
@@ -59,34 +86,28 @@ func (s SessionStore) CreateSession(ctx context.Context, sessionID, userID strin
 		return fmt.Errorf("build user sessions key: %w", err)
 	}
 
-	payload := sessionPayload{
-		UserID:    userID,
-		ExpiresAt: time.Now().UTC().Add(cache.DefaultSessionTTL),
+	ttl := s.ttl
+	if ttl <= 0 {
+		ttl = cache.DefaultSessionTTL
 	}
 
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("marshal session: %w", err)
-	}
-
-	if err := s.client.Set(ctx, sessionKey, data, cache.DefaultSessionTTL).Err(); err != nil {
+	if err := s.client.Eval(
+		ctx,
+		createSessionScript,
+		[]string{sessionKey, userSessionsKey},
+		userID,
+		ttl.Milliseconds(),
+		sessionID,
+	).Err(); err != nil {
 		return fmt.Errorf("create session: %w", err)
-	}
-
-	if err := s.client.SAdd(ctx, userSessionsKey, sessionID).Err(); err != nil {
-		return fmt.Errorf("index session by user: %w", err)
-	}
-
-	if err := s.client.Expire(ctx, userSessionsKey, cache.DefaultSessionTTL).Err(); err != nil {
-		return fmt.Errorf("expire user sessions index: %w", err)
 	}
 
 	return nil
 }
 
-// GetSessionUserID returns the user ID for a session token.
-func (s SessionStore) GetSessionUserID(ctx context.Context, sessionID string) (string, error) {
-	if s.client == nil {
+// GetSessionUserID returns the user ID that owns a session.
+func (s *SessionStore) GetSessionUserID(ctx context.Context, sessionID string) (string, error) {
+	if s == nil || s.client == nil {
 		return "", cache.ErrNilClient
 	}
 
@@ -100,21 +121,15 @@ func (s SessionStore) GetSessionUserID(ctx context.Context, sessionID string) (s
 		return "", fmt.Errorf("build session key: %w", err)
 	}
 
-	raw, err := s.client.Get(ctx, sessionKey).Result()
+	userID, err := s.client.Get(ctx, sessionKey).Result()
+	if errors.Is(err, goredis.Nil) {
+		return "", domain.ErrUnauthenticated
+	}
 	if err != nil {
-		if errors.Is(err, goredis.Nil) {
-			return "", domain.ErrUnauthenticated
-		}
-
 		return "", fmt.Errorf("get session: %w", err)
 	}
 
-	var payload sessionPayload
-	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
-		return "", fmt.Errorf("decode session: %w", err)
-	}
-
-	userID, err := validate.RequiredID("user ID", payload.UserID)
+	userID, err = validate.RequiredID("user ID", userID)
 	if err != nil {
 		return "", domain.ErrUnauthenticated
 	}
@@ -122,12 +137,9 @@ func (s SessionStore) GetSessionUserID(ctx context.Context, sessionID string) (s
 	return userID, nil
 }
 
-// DeleteSession deletes a single session token.
-//
-// Note: without storing a reverse session-to-user cleanup transaction, this may leave
-// old session IDs inside the user_sessions set. DeleteUserSessions handles bulk cleanup.
-func (s SessionStore) DeleteSession(ctx context.Context, sessionID string) error {
-	if s.client == nil {
+// DeleteSession deletes one session and removes it from the owning user's session index.
+func (s *SessionStore) DeleteSession(ctx context.Context, sessionID string) error {
+	if s == nil || s.client == nil {
 		return cache.ErrNilClient
 	}
 
@@ -141,16 +153,34 @@ func (s SessionStore) DeleteSession(ctx context.Context, sessionID string) error
 		return fmt.Errorf("build session key: %w", err)
 	}
 
-	if err := s.client.Del(ctx, sessionKey).Err(); err != nil {
+	userID, err := s.GetSessionUserID(ctx, sessionID)
+	if errors.Is(err, domain.ErrUnauthenticated) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	userSessionsKey, err := s.keys.UserSessions(userID)
+	if err != nil {
+		return fmt.Errorf("build user sessions key: %w", err)
+	}
+
+	if err := s.client.Eval(
+		ctx,
+		deleteSessionScript,
+		[]string{sessionKey, userSessionsKey},
+		sessionID,
+	).Err(); err != nil {
 		return fmt.Errorf("delete session: %w", err)
 	}
 
 	return nil
 }
 
-// DeleteUserSessions deletes all known session tokens for a user and removes the user session index.
-func (s SessionStore) DeleteUserSessions(ctx context.Context, userID string) error {
-	if s.client == nil {
+// DeleteUserSessions deletes every known session for a user.
+func (s *SessionStore) DeleteUserSessions(ctx context.Context, userID string) error {
+	if s == nil || s.client == nil {
 		return cache.ErrNilClient
 	}
 
@@ -164,32 +194,14 @@ func (s SessionStore) DeleteUserSessions(ctx context.Context, userID string) err
 		return fmt.Errorf("build user sessions key: %w", err)
 	}
 
-	sessionIDs, err := s.client.SMembers(ctx, userSessionsKey).Result()
-	if err != nil {
-		return fmt.Errorf("list user sessions: %w", err)
-	}
+	sessionPrefix := s.keys.Prefix() + ":session:"
 
-	keysToDelete := make([]string, 0, len(sessionIDs)+1)
-	for _, sessionID := range sessionIDs {
-		if sessionID == "" {
-			continue
-		}
-
-		sessionKey, err := s.keys.Session(sessionID)
-		if err != nil {
-			continue
-		}
-
-		keysToDelete = append(keysToDelete, sessionKey)
-	}
-
-	keysToDelete = append(keysToDelete, userSessionsKey)
-
-	if len(keysToDelete) == 0 {
-		return nil
-	}
-
-	if err := s.client.Del(ctx, keysToDelete...).Err(); err != nil {
+	if err := s.client.Eval(
+		ctx,
+		deleteUserSessionsScript,
+		[]string{userSessionsKey},
+		sessionPrefix,
+	).Err(); err != nil {
 		return fmt.Errorf("delete user sessions: %w", err)
 	}
 
