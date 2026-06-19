@@ -5,7 +5,8 @@ BIN_DIR  := bin
 API_CMD  := ./cmd/api
 GAME_CMD := ./cmd/game
 
-GO_FILES = $(shell git ls-files '*.go') $(shell git ls-files --others --exclude-standard '*.go')
+GO_EXCLUDE := internal/protocol
+GO_FILES = $(shell (git ls-files '*.go'; git ls-files --others --exclude-standard '*.go') | grep -Ev '$(GO_EXCLUDE)')
 
 ENV_RUN := scripts/env-run.sh
 
@@ -186,14 +187,14 @@ tidy-check:
 
 fmt:
 	@if [ -n "$(GO_FILES)" ]; then \
-		gofmt -w $(GO_FILES); \
+		go tool gofumpt -w $(GO_FILES); \
 		go tool goimports -w $(GO_FILES); \
 	fi
 
 fmt-check:
-	@files="$$(gofmt -l $(GO_FILES))"; \
+	@files="$$(go tool gofumpt -l $(GO_FILES))"; \
 	if [ -n "$$files" ]; then \
-		echo "Go files need gofmt:"; \
+		echo "Go files need gofumpt:"; \
 		echo "$$files"; \
 		exit 1; \
 	fi

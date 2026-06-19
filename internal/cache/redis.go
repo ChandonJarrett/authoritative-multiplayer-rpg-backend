@@ -5,9 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/config"
-
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -17,11 +17,26 @@ var ErrNilClient = errors.New("redis client is nil")
 // ErrNilPoolStats is returned when PoolStats returns nil.
 var ErrNilPoolStats = errors.New("redis pool stats is nil")
 
-// Client is the minimal Redis interface required by this package; *goredis.Client satisfies this interface.
+// Client is the minimal Redis interface required by this package and Redis-backed stores.
+// *goredis.Client satisfies this interface.
 type Client interface {
 	Ping(ctx context.Context) *goredis.StatusCmd
 	Close() error
 	PoolStats() *goredis.PoolStats
+
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *goredis.StatusCmd
+	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *goredis.BoolCmd
+	Get(ctx context.Context, key string) *goredis.StringCmd
+	GetDel(ctx context.Context, key string) *goredis.StringCmd
+	Del(ctx context.Context, keys ...string) *goredis.IntCmd
+	Eval(ctx context.Context, script string, keys []string, args ...interface{}) *goredis.Cmd
+
+	SAdd(ctx context.Context, key string, members ...interface{}) *goredis.IntCmd
+	SRem(ctx context.Context, key string, members ...interface{}) *goredis.IntCmd
+	SMembers(ctx context.Context, key string) *goredis.StringSliceCmd
+	Expire(ctx context.Context, key string, expiration time.Duration) *goredis.BoolCmd
+
+	Incr(ctx context.Context, key string) *goredis.IntCmd
 }
 
 // NewClient creates and validates a Redis client from configuration.
@@ -53,6 +68,7 @@ func Health(ctx context.Context, client Client) error {
 	if err := client.Ping(ctx).Err(); err != nil {
 		return fmt.Errorf("redis ping: %w", err)
 	}
+
 	return nil
 }
 
@@ -64,6 +80,7 @@ func Close(client Client) error {
 	if err := client.Close(); err != nil {
 		return fmt.Errorf("close redis: %w", err)
 	}
+
 	return nil
 }
 
@@ -82,10 +99,12 @@ func Snapshot(client Client) (Stats, error) {
 	if client == nil {
 		return Stats{}, ErrNilClient
 	}
+
 	s := client.PoolStats()
 	if s == nil {
 		return Stats{}, ErrNilPoolStats
 	}
+
 	return Stats{
 		PoolHits:     s.Hits,
 		PoolMisses:   s.Misses,

@@ -2,31 +2,115 @@ syntax = "proto3";
 
 package rpg.v1;
 
+import "rpg/v1/common.proto";
+
 option go_package = "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1;rpgv1";
+
+// --- System ---
+
+// SystemService exposes basic connectivity and health-style RPCs for clients.
+service SystemService {
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+message PingRequest {}
+
+message PingResponse {
+  string service = 1;
+  string message = 2;
+  string server_time = 3;
+}
 
 // --- Auth ---
 
-// AuthService handles registration and login. Session tokens issued here are passed as Bearer tokens on subsequent RPCs.
+// AuthService handles registration and login.
+// Session tokens issued here are passed as Bearer tokens on subsequent RPCs.
 service AuthService {
   rpc Register(RegisterRequest) returns (RegisterResponse);
   rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
 }
 
 message RegisterRequest {
-  string email    = 1;
+  string email = 1;
   string password = 2;
 }
 
 message RegisterResponse {
   string user_id = 1;
+  string session_token = 2;
 }
 
 message LoginRequest {
-  string email    = 1;
+  string email = 1;
   string password = 2;
 }
 
 message LoginResponse {
-  // Opaque session token; include as "Authorization: Bearer <token>" on CharacterService and GameService RPCs.
-  string session_token = 1;
+  string user_id = 1;
+  string session_token = 2;
+}
+
+message LogoutRequest {}
+
+message LogoutResponse {}
+
+// --- Characters ---
+
+service CharacterService {
+  rpc CreateCharacter(CreateCharacterRequest) returns (CreateCharacterResponse);
+  rpc ListCharacters(ListCharactersRequest) returns (ListCharactersResponse);
+}
+
+message CreateCharacterRequest {
+  string name = 1;
+}
+
+message CreateCharacterResponse {
+  string character_id = 1;
+}
+
+message ListCharactersRequest {}
+
+message ListCharactersResponse {
+  repeated CharacterSummary characters = 1;
+}
+
+message CharacterSummary {
+  string character_id = 1;
+  string name = 2;
+  string map_id = 3;
+  Vec3 position = 4;
+}
+
+// --- Game handoff ---
+
+// GameService issues the short-lived join token a client presents to the game server.
+service GameService {
+  rpc ListGameServers(ListGameServersRequest) returns (ListGameServersResponse);
+  rpc IssueJoinToken(IssueJoinTokenRequest) returns (IssueJoinTokenResponse);
+}
+
+message ListGameServersRequest {}
+
+message ListGameServersResponse {
+  repeated GameServerSummary servers = 1;
+}
+
+message GameServerSummary {
+  string game_server_id = 1;
+  string game_server_addr = 2;
+  int64 expires_in_seconds = 3;
+}
+
+message IssueJoinTokenRequest {
+  string character_id = 1;
+  string game_server_id = 2;
+}
+
+message IssueJoinTokenResponse {
+  string join_token = 1;
+  string game_server_id = 2;
+  string game_server_addr = 3;
+  int64 expires_in_seconds = 4;
 }

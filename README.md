@@ -4,10 +4,10 @@ Real-time, server-authoritative multiplayer RPG backend in Go.
 
 Two services, clearly separated:
 
-- **API server**: ConnectRPC over HTTP/gRPC. Handles auth, accounts, and characters.
+- **API server**: ConnectRPC over HTTP/gRPC. Handles auth, accounts, characters, and game handoff.
 - **Game server**: Authoritative simulation over ENet/UDP. Owns all real-time game state.
 
-> **Status:** Runtime bootstrap is complete. ConnectRPC handlers and the ENet game loop are not yet implemented. See [Current status](#current-status).
+> **Status:** Runtime bootstrap is complete. The API server now mounts ConnectRPC handlers for system, auth, character, and game handoff flows. The game server lifecycle now starts its HTTP health server and Redis registry heartbeat, but the ENet host, join-token redemption, simulation loop, and snapshot broadcast loop are still incomplete. See [Current status](#current-status).
 
 ---
 
@@ -17,7 +17,7 @@ This project is **devcontainer-first**. Open it in VS Code Dev Containers or the
 
 On first creation, the devcontainer runs `make setup`, which:
 
-- copies `.env.example` -> `.env` (if not already present)
+- copies `.env.example` -> `.env` if not already present
 - installs Git hooks
 - installs Go tools
 - downloads Go modules
@@ -73,7 +73,7 @@ Run `make help` for the complete list.
 
 ## System overview
 
-```
+```text
  Browser / Client
          |
          V
@@ -85,39 +85,57 @@ Run `make help` for the complete list.
               |            |
               \____________/
                      |
-  ______________     |        _____________
-  | PostgreSQL │  <----->     │   Redis   |
-  |  durable   |              | ephemeral |
-  ______________              _____________
+  ______________     |      _____________
+  | PostgreSQL │  <----->   │   Redis   |
+  |  durable   |            | ephemeral |
+  ______________            _____________
 ```
 
 **PostgreSQL** stores everything that must survive a restart: users, characters, inventory.  
-**Redis** stores short-lived coordination state: sessions, join tokens, server registry, character locks.
+**Redis** stores short-lived coordination state: sessions, join tokens, server registry, character locks, and rate-limit counters.
 
 ---
 
 ## Current status
 
 **Implemented:**
+
 - Runtime bootstrap: config loading, logger, PostgreSQL pool, Redis client
 - Configuration validation with environment variable defaults
-- Redis key builder (`internal/cache`)
-- Database transaction helpers (`internal/db`)
-- Migrations: `users`, `characters` tables with triggers and indexes
-- Protobuf definitions (`api.proto`, `game.proto`, `common.proto`) and code generation
+- Redis key builder and TTL constants
+- Database transaction helpers
+- Migrations: users and characters tables with triggers and indexes
+- Protobuf definitions and generated Go code
 - Docker Compose local environment
 - Devcontainer
 - CI quality and test pipeline
+- ConnectRPC API server lifecycle
+- Health and readiness endpoints
+- CORS handling
+- Request ID middleware, panic recovery, HTTP logging, and RPC logging
+- System ping RPC
+- Auth register/login/logout RPC handlers
+- Auth interceptor using Redis-backed bearer sessions
+- Auth service with Argon2id password hashing and opaque session tokens
+- Auth rate limiting with Redis-backed counters
+- Character create/list RPC handlers
+- Character service and PostgreSQL store
+- Game handoff API for game-server listing and join-token issuance
+- Redis session, join-token, game-server, character-lock, and rate-limit stores
+- API metrics in Prometheus text format
+- Game server lifecycle shell with HTTP health/readiness endpoints
+- Game server Redis registration and heartbeat lifecycle
+- Unit and integration tests for core foundation pieces
 
-**Not yet implemented:**
-- ConnectRPC API handlers
-- Authentication and session logic
-- Character business logic
-- Redis session store and join-token issuance
-- ENet game server host
-- Game simulation loop (target: 64Hz)
-- World snapshot broadcast loop (target: 32Hz)
-- Production deployment configuration
+**Not yet implemented or incomplete:**
+
+- Production observability: tracing, audit logs, and deeper operational metrics
+- Game server ENet host lifecycle
+- Game-server join-token redemption
+- Character lock acquisition and renewal in the live join path
+- Game simulation loop
+- World snapshot broadcast loop
+- Durable gameplay save/load boundaries beyond the current character data foundation
 
 ---
 

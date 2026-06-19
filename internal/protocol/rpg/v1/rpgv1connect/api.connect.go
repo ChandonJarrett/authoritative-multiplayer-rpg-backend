@@ -5,13 +5,12 @@
 package rpgv1connect
 
 import (
+	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
+	v1 "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1"
 	http "net/http"
 	strings "strings"
-
-	connect "connectrpc.com/connect"
-	v1 "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1"
 )
 
 // This is a compile-time assertion to ensure that this generated file and the connect package are
@@ -22,8 +21,14 @@ import (
 const _ = connect.IsAtLeastVersion1_13_0
 
 const (
+	// SystemServiceName is the fully-qualified name of the SystemService service.
+	SystemServiceName = "rpg.v1.SystemService"
 	// AuthServiceName is the fully-qualified name of the AuthService service.
 	AuthServiceName = "rpg.v1.AuthService"
+	// CharacterServiceName is the fully-qualified name of the CharacterService service.
+	CharacterServiceName = "rpg.v1.CharacterService"
+	// GameServiceName is the fully-qualified name of the GameService service.
+	GameServiceName = "rpg.v1.GameService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -34,16 +39,103 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// SystemServicePingProcedure is the fully-qualified name of the SystemService's Ping RPC.
+	SystemServicePingProcedure = "/rpg.v1.SystemService/Ping"
 	// AuthServiceRegisterProcedure is the fully-qualified name of the AuthService's Register RPC.
 	AuthServiceRegisterProcedure = "/rpg.v1.AuthService/Register"
 	// AuthServiceLoginProcedure is the fully-qualified name of the AuthService's Login RPC.
 	AuthServiceLoginProcedure = "/rpg.v1.AuthService/Login"
+	// AuthServiceLogoutProcedure is the fully-qualified name of the AuthService's Logout RPC.
+	AuthServiceLogoutProcedure = "/rpg.v1.AuthService/Logout"
+	// CharacterServiceCreateCharacterProcedure is the fully-qualified name of the CharacterService's
+	// CreateCharacter RPC.
+	CharacterServiceCreateCharacterProcedure = "/rpg.v1.CharacterService/CreateCharacter"
+	// CharacterServiceListCharactersProcedure is the fully-qualified name of the CharacterService's
+	// ListCharacters RPC.
+	CharacterServiceListCharactersProcedure = "/rpg.v1.CharacterService/ListCharacters"
+	// GameServiceListGameServersProcedure is the fully-qualified name of the GameService's
+	// ListGameServers RPC.
+	GameServiceListGameServersProcedure = "/rpg.v1.GameService/ListGameServers"
+	// GameServiceIssueJoinTokenProcedure is the fully-qualified name of the GameService's
+	// IssueJoinToken RPC.
+	GameServiceIssueJoinTokenProcedure = "/rpg.v1.GameService/IssueJoinToken"
 )
+
+// SystemServiceClient is a client for the rpg.v1.SystemService service.
+type SystemServiceClient interface {
+	Ping(context.Context, *connect.Request[v1.PingRequest]) (*connect.Response[v1.PingResponse], error)
+}
+
+// NewSystemServiceClient constructs a client for the rpg.v1.SystemService service. By default, it
+// uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewSystemServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) SystemServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	systemServiceMethods := v1.File_rpg_v1_api_proto.Services().ByName("SystemService").Methods()
+	return &systemServiceClient{
+		ping: connect.NewClient[v1.PingRequest, v1.PingResponse](
+			httpClient,
+			baseURL+SystemServicePingProcedure,
+			connect.WithSchema(systemServiceMethods.ByName("Ping")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// systemServiceClient implements SystemServiceClient.
+type systemServiceClient struct {
+	ping *connect.Client[v1.PingRequest, v1.PingResponse]
+}
+
+// Ping calls rpg.v1.SystemService.Ping.
+func (c *systemServiceClient) Ping(ctx context.Context, req *connect.Request[v1.PingRequest]) (*connect.Response[v1.PingResponse], error) {
+	return c.ping.CallUnary(ctx, req)
+}
+
+// SystemServiceHandler is an implementation of the rpg.v1.SystemService service.
+type SystemServiceHandler interface {
+	Ping(context.Context, *connect.Request[v1.PingRequest]) (*connect.Response[v1.PingResponse], error)
+}
+
+// NewSystemServiceHandler builds an HTTP handler from the service implementation. It returns the
+// path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	systemServiceMethods := v1.File_rpg_v1_api_proto.Services().ByName("SystemService").Methods()
+	systemServicePingHandler := connect.NewUnaryHandler(
+		SystemServicePingProcedure,
+		svc.Ping,
+		connect.WithSchema(systemServiceMethods.ByName("Ping")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/rpg.v1.SystemService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case SystemServicePingProcedure:
+			systemServicePingHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedSystemServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedSystemServiceHandler struct{}
+
+func (UnimplementedSystemServiceHandler) Ping(context.Context, *connect.Request[v1.PingRequest]) (*connect.Response[v1.PingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rpg.v1.SystemService.Ping is not implemented"))
+}
 
 // AuthServiceClient is a client for the rpg.v1.AuthService service.
 type AuthServiceClient interface {
 	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
 	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 }
 
 // NewAuthServiceClient constructs a client for the rpg.v1.AuthService service. By default, it uses
@@ -69,6 +161,12 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("Login")),
 			connect.WithClientOptions(opts...),
 		),
+		logout: connect.NewClient[v1.LogoutRequest, v1.LogoutResponse](
+			httpClient,
+			baseURL+AuthServiceLogoutProcedure,
+			connect.WithSchema(authServiceMethods.ByName("Logout")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -76,6 +174,7 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 type authServiceClient struct {
 	register *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
 	login    *connect.Client[v1.LoginRequest, v1.LoginResponse]
+	logout   *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
 }
 
 // Register calls rpg.v1.AuthService.Register.
@@ -88,10 +187,16 @@ func (c *authServiceClient) Login(ctx context.Context, req *connect.Request[v1.L
 	return c.login.CallUnary(ctx, req)
 }
 
+// Logout calls rpg.v1.AuthService.Logout.
+func (c *authServiceClient) Logout(ctx context.Context, req *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
+	return c.logout.CallUnary(ctx, req)
+}
+
 // AuthServiceHandler is an implementation of the rpg.v1.AuthService service.
 type AuthServiceHandler interface {
 	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
 	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 }
 
 // NewAuthServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -113,12 +218,20 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("Login")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceLogoutHandler := connect.NewUnaryHandler(
+		AuthServiceLogoutProcedure,
+		svc.Logout,
+		connect.WithSchema(authServiceMethods.ByName("Logout")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/rpg.v1.AuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AuthServiceRegisterProcedure:
 			authServiceRegisterHandler.ServeHTTP(w, r)
 		case AuthServiceLoginProcedure:
 			authServiceLoginHandler.ServeHTTP(w, r)
+		case AuthServiceLogoutProcedure:
+			authServiceLogoutHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -134,4 +247,200 @@ func (UnimplementedAuthServiceHandler) Register(context.Context, *connect.Reques
 
 func (UnimplementedAuthServiceHandler) Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rpg.v1.AuthService.Login is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rpg.v1.AuthService.Logout is not implemented"))
+}
+
+// CharacterServiceClient is a client for the rpg.v1.CharacterService service.
+type CharacterServiceClient interface {
+	CreateCharacter(context.Context, *connect.Request[v1.CreateCharacterRequest]) (*connect.Response[v1.CreateCharacterResponse], error)
+	ListCharacters(context.Context, *connect.Request[v1.ListCharactersRequest]) (*connect.Response[v1.ListCharactersResponse], error)
+}
+
+// NewCharacterServiceClient constructs a client for the rpg.v1.CharacterService service. By
+// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
+// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// connect.WithGRPC() or connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewCharacterServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) CharacterServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	characterServiceMethods := v1.File_rpg_v1_api_proto.Services().ByName("CharacterService").Methods()
+	return &characterServiceClient{
+		createCharacter: connect.NewClient[v1.CreateCharacterRequest, v1.CreateCharacterResponse](
+			httpClient,
+			baseURL+CharacterServiceCreateCharacterProcedure,
+			connect.WithSchema(characterServiceMethods.ByName("CreateCharacter")),
+			connect.WithClientOptions(opts...),
+		),
+		listCharacters: connect.NewClient[v1.ListCharactersRequest, v1.ListCharactersResponse](
+			httpClient,
+			baseURL+CharacterServiceListCharactersProcedure,
+			connect.WithSchema(characterServiceMethods.ByName("ListCharacters")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// characterServiceClient implements CharacterServiceClient.
+type characterServiceClient struct {
+	createCharacter *connect.Client[v1.CreateCharacterRequest, v1.CreateCharacterResponse]
+	listCharacters  *connect.Client[v1.ListCharactersRequest, v1.ListCharactersResponse]
+}
+
+// CreateCharacter calls rpg.v1.CharacterService.CreateCharacter.
+func (c *characterServiceClient) CreateCharacter(ctx context.Context, req *connect.Request[v1.CreateCharacterRequest]) (*connect.Response[v1.CreateCharacterResponse], error) {
+	return c.createCharacter.CallUnary(ctx, req)
+}
+
+// ListCharacters calls rpg.v1.CharacterService.ListCharacters.
+func (c *characterServiceClient) ListCharacters(ctx context.Context, req *connect.Request[v1.ListCharactersRequest]) (*connect.Response[v1.ListCharactersResponse], error) {
+	return c.listCharacters.CallUnary(ctx, req)
+}
+
+// CharacterServiceHandler is an implementation of the rpg.v1.CharacterService service.
+type CharacterServiceHandler interface {
+	CreateCharacter(context.Context, *connect.Request[v1.CreateCharacterRequest]) (*connect.Response[v1.CreateCharacterResponse], error)
+	ListCharacters(context.Context, *connect.Request[v1.ListCharactersRequest]) (*connect.Response[v1.ListCharactersResponse], error)
+}
+
+// NewCharacterServiceHandler builds an HTTP handler from the service implementation. It returns the
+// path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewCharacterServiceHandler(svc CharacterServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	characterServiceMethods := v1.File_rpg_v1_api_proto.Services().ByName("CharacterService").Methods()
+	characterServiceCreateCharacterHandler := connect.NewUnaryHandler(
+		CharacterServiceCreateCharacterProcedure,
+		svc.CreateCharacter,
+		connect.WithSchema(characterServiceMethods.ByName("CreateCharacter")),
+		connect.WithHandlerOptions(opts...),
+	)
+	characterServiceListCharactersHandler := connect.NewUnaryHandler(
+		CharacterServiceListCharactersProcedure,
+		svc.ListCharacters,
+		connect.WithSchema(characterServiceMethods.ByName("ListCharacters")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/rpg.v1.CharacterService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case CharacterServiceCreateCharacterProcedure:
+			characterServiceCreateCharacterHandler.ServeHTTP(w, r)
+		case CharacterServiceListCharactersProcedure:
+			characterServiceListCharactersHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedCharacterServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedCharacterServiceHandler struct{}
+
+func (UnimplementedCharacterServiceHandler) CreateCharacter(context.Context, *connect.Request[v1.CreateCharacterRequest]) (*connect.Response[v1.CreateCharacterResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rpg.v1.CharacterService.CreateCharacter is not implemented"))
+}
+
+func (UnimplementedCharacterServiceHandler) ListCharacters(context.Context, *connect.Request[v1.ListCharactersRequest]) (*connect.Response[v1.ListCharactersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rpg.v1.CharacterService.ListCharacters is not implemented"))
+}
+
+// GameServiceClient is a client for the rpg.v1.GameService service.
+type GameServiceClient interface {
+	ListGameServers(context.Context, *connect.Request[v1.ListGameServersRequest]) (*connect.Response[v1.ListGameServersResponse], error)
+	IssueJoinToken(context.Context, *connect.Request[v1.IssueJoinTokenRequest]) (*connect.Response[v1.IssueJoinTokenResponse], error)
+}
+
+// NewGameServiceClient constructs a client for the rpg.v1.GameService service. By default, it uses
+// the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewGameServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) GameServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	gameServiceMethods := v1.File_rpg_v1_api_proto.Services().ByName("GameService").Methods()
+	return &gameServiceClient{
+		listGameServers: connect.NewClient[v1.ListGameServersRequest, v1.ListGameServersResponse](
+			httpClient,
+			baseURL+GameServiceListGameServersProcedure,
+			connect.WithSchema(gameServiceMethods.ByName("ListGameServers")),
+			connect.WithClientOptions(opts...),
+		),
+		issueJoinToken: connect.NewClient[v1.IssueJoinTokenRequest, v1.IssueJoinTokenResponse](
+			httpClient,
+			baseURL+GameServiceIssueJoinTokenProcedure,
+			connect.WithSchema(gameServiceMethods.ByName("IssueJoinToken")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// gameServiceClient implements GameServiceClient.
+type gameServiceClient struct {
+	listGameServers *connect.Client[v1.ListGameServersRequest, v1.ListGameServersResponse]
+	issueJoinToken  *connect.Client[v1.IssueJoinTokenRequest, v1.IssueJoinTokenResponse]
+}
+
+// ListGameServers calls rpg.v1.GameService.ListGameServers.
+func (c *gameServiceClient) ListGameServers(ctx context.Context, req *connect.Request[v1.ListGameServersRequest]) (*connect.Response[v1.ListGameServersResponse], error) {
+	return c.listGameServers.CallUnary(ctx, req)
+}
+
+// IssueJoinToken calls rpg.v1.GameService.IssueJoinToken.
+func (c *gameServiceClient) IssueJoinToken(ctx context.Context, req *connect.Request[v1.IssueJoinTokenRequest]) (*connect.Response[v1.IssueJoinTokenResponse], error) {
+	return c.issueJoinToken.CallUnary(ctx, req)
+}
+
+// GameServiceHandler is an implementation of the rpg.v1.GameService service.
+type GameServiceHandler interface {
+	ListGameServers(context.Context, *connect.Request[v1.ListGameServersRequest]) (*connect.Response[v1.ListGameServersResponse], error)
+	IssueJoinToken(context.Context, *connect.Request[v1.IssueJoinTokenRequest]) (*connect.Response[v1.IssueJoinTokenResponse], error)
+}
+
+// NewGameServiceHandler builds an HTTP handler from the service implementation. It returns the path
+// on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewGameServiceHandler(svc GameServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	gameServiceMethods := v1.File_rpg_v1_api_proto.Services().ByName("GameService").Methods()
+	gameServiceListGameServersHandler := connect.NewUnaryHandler(
+		GameServiceListGameServersProcedure,
+		svc.ListGameServers,
+		connect.WithSchema(gameServiceMethods.ByName("ListGameServers")),
+		connect.WithHandlerOptions(opts...),
+	)
+	gameServiceIssueJoinTokenHandler := connect.NewUnaryHandler(
+		GameServiceIssueJoinTokenProcedure,
+		svc.IssueJoinToken,
+		connect.WithSchema(gameServiceMethods.ByName("IssueJoinToken")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/rpg.v1.GameService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case GameServiceListGameServersProcedure:
+			gameServiceListGameServersHandler.ServeHTTP(w, r)
+		case GameServiceIssueJoinTokenProcedure:
+			gameServiceIssueJoinTokenHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedGameServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedGameServiceHandler struct{}
+
+func (UnimplementedGameServiceHandler) ListGameServers(context.Context, *connect.Request[v1.ListGameServersRequest]) (*connect.Response[v1.ListGameServersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rpg.v1.GameService.ListGameServers is not implemented"))
+}
+
+func (UnimplementedGameServiceHandler) IssueJoinToken(context.Context, *connect.Request[v1.IssueJoinTokenRequest]) (*connect.Response[v1.IssueJoinTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rpg.v1.GameService.IssueJoinToken is not implemented"))
 }

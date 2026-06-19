@@ -8,7 +8,7 @@ Three test layers:
 | Integration | `make test-integration` | Yes | Medium |
 | Race | `make test-race` | No | Slow |
 
-Run all tests (unit + integration): `make test`
+Run all tests, unit + integration: `make test`
 
 ---
 
@@ -25,7 +25,12 @@ Covers:
 - Config parsing, defaults, and validation
 - Redis key construction and validation
 - Logger setup and level filtering
-- Transaction helper guard clauses (nil pool, nil function)
+- Transaction helper guard clauses, nil pool, nil function
+- Domain and validation helpers
+- Auth password hashing and token helpers
+- API middleware, auth context, error mapping, request IDs, CORS, rate limiting
+- Service-layer guard clauses and core behavior
+- Observability metric rendering
 
 ---
 
@@ -34,7 +39,7 @@ Covers:
 Require PostgreSQL and Redis to be running with migrations applied.
 
 ```bash
-# In the devcontainer (services are always running):
+# In the devcontainer, services are always running:
 make test-integration
 
 # On a local machine:
@@ -43,9 +48,9 @@ make migrate-up
 make test-integration
 ```
 
-Integration tests use the `//go:build integration` build tag. They use `testutil.SkipOnServiceError` (see `internal/testutil/integration.go`) to handle service-connection failures in one of two ways:
+Integration tests use the `//go:build integration` build tag. They use `testutil.SkipOnServiceError` in `internal/testutil/integration.go` to handle service-connection failures in one of two ways:
 
-- **Locally** (CI not set): skips gracefully with a message.
+- **Locally** (`CI` not set): skips gracefully with a message.
 - **In CI** (`CI=true`): fails hard, because services are always expected to be available.
 
 Covers:
@@ -54,6 +59,9 @@ Covers:
 - Redis connectivity, set/get round-trip, and pool stats
 - Transaction commit and rollback behavior
 - Migration schema: tables, columns, types, indexes, triggers, functions, and extensions
+- PostgreSQL user and character stores
+- Redis session, join-token, game-server, character-lock, and rate-limit stores
+- API readiness checks that depend on PostgreSQL and Redis
 
 ---
 
@@ -65,7 +73,7 @@ Run the full test suite with Go's race detector enabled.
 make test-race
 ```
 
-Use before merging any changes that touch shared state or concurrency. Race tests are slower and are not required in every local run; CI runs them automatically.
+Use before merging any changes that touch shared state or concurrency. Race tests are slower and are not required in every local run. CI runs them automatically.
 
 ---
 

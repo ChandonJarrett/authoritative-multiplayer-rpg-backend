@@ -8,7 +8,6 @@ package rpgv1
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -20,18 +19,125 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	SystemService_Ping_FullMethodName = "/rpg.v1.SystemService/Ping"
+)
+
+// SystemServiceClient is the client API for SystemService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// SystemService exposes basic connectivity and health-style RPCs for clients.
+type SystemServiceClient interface {
+	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
+}
+
+type systemServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewSystemServiceClient(cc grpc.ClientConnInterface) SystemServiceClient {
+	return &systemServiceClient{cc}
+}
+
+func (c *systemServiceClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PingResponse)
+	err := c.cc.Invoke(ctx, SystemService_Ping_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// SystemServiceServer is the server API for SystemService service.
+// All implementations should embed UnimplementedSystemServiceServer
+// for forward compatibility.
+//
+// SystemService exposes basic connectivity and health-style RPCs for clients.
+type SystemServiceServer interface {
+	Ping(context.Context, *PingRequest) (*PingResponse, error)
+}
+
+// UnimplementedSystemServiceServer should be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedSystemServiceServer struct{}
+
+func (UnimplementedSystemServiceServer) Ping(context.Context, *PingRequest) (*PingResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Ping not implemented")
+}
+func (UnimplementedSystemServiceServer) testEmbeddedByValue() {}
+
+// UnsafeSystemServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to SystemServiceServer will
+// result in compilation errors.
+type UnsafeSystemServiceServer interface {
+	mustEmbedUnimplementedSystemServiceServer()
+}
+
+func RegisterSystemServiceServer(s grpc.ServiceRegistrar, srv SystemServiceServer) {
+	// If the following call panics, it indicates UnimplementedSystemServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&SystemService_ServiceDesc, srv)
+}
+
+func _SystemService_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SystemServiceServer).Ping(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SystemService_Ping_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SystemServiceServer).Ping(ctx, req.(*PingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// SystemService_ServiceDesc is the grpc.ServiceDesc for SystemService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var SystemService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "rpg.v1.SystemService",
+	HandlerType: (*SystemServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Ping",
+			Handler:    _SystemService_Ping_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "rpg/v1/api.proto",
+}
+
+const (
 	AuthService_Register_FullMethodName = "/rpg.v1.AuthService/Register"
 	AuthService_Login_FullMethodName    = "/rpg.v1.AuthService/Login"
+	AuthService_Logout_FullMethodName   = "/rpg.v1.AuthService/Logout"
 )
 
 // AuthServiceClient is the client API for AuthService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// AuthService handles registration and login. Session tokens issued here are passed as Bearer tokens on subsequent RPCs.
+// AuthService handles registration and login.
+// Session tokens issued here are passed as Bearer tokens on subsequent RPCs.
 type AuthServiceClient interface {
 	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error)
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
+	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
 }
 
 type authServiceClient struct {
@@ -62,14 +168,26 @@ func (c *authServiceClient) Login(ctx context.Context, in *LoginRequest, opts ..
 	return out, nil
 }
 
+func (c *authServiceClient) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogoutResponse)
+	err := c.cc.Invoke(ctx, AuthService_Logout_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations should embed UnimplementedAuthServiceServer
 // for forward compatibility.
 //
-// AuthService handles registration and login. Session tokens issued here are passed as Bearer tokens on subsequent RPCs.
+// AuthService handles registration and login.
+// Session tokens issued here are passed as Bearer tokens on subsequent RPCs.
 type AuthServiceServer interface {
 	Register(context.Context, *RegisterRequest) (*RegisterResponse, error)
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
+	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
 }
 
 // UnimplementedAuthServiceServer should be embedded to have
@@ -84,6 +202,9 @@ func (UnimplementedAuthServiceServer) Register(context.Context, *RegisterRequest
 }
 func (UnimplementedAuthServiceServer) Login(context.Context, *LoginRequest) (*LoginResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Login not implemented")
+}
+func (UnimplementedAuthServiceServer) Logout(context.Context, *LogoutRequest) (*LogoutResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Logout not implemented")
 }
 func (UnimplementedAuthServiceServer) testEmbeddedByValue() {}
 
@@ -141,6 +262,24 @@ func _AuthService_Login_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_Logout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogoutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).Logout(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_Logout_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).Logout(ctx, req.(*LogoutRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -155,6 +294,290 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Login",
 			Handler:    _AuthService_Login_Handler,
+		},
+		{
+			MethodName: "Logout",
+			Handler:    _AuthService_Logout_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "rpg/v1/api.proto",
+}
+
+const (
+	CharacterService_CreateCharacter_FullMethodName = "/rpg.v1.CharacterService/CreateCharacter"
+	CharacterService_ListCharacters_FullMethodName  = "/rpg.v1.CharacterService/ListCharacters"
+)
+
+// CharacterServiceClient is the client API for CharacterService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type CharacterServiceClient interface {
+	CreateCharacter(ctx context.Context, in *CreateCharacterRequest, opts ...grpc.CallOption) (*CreateCharacterResponse, error)
+	ListCharacters(ctx context.Context, in *ListCharactersRequest, opts ...grpc.CallOption) (*ListCharactersResponse, error)
+}
+
+type characterServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewCharacterServiceClient(cc grpc.ClientConnInterface) CharacterServiceClient {
+	return &characterServiceClient{cc}
+}
+
+func (c *characterServiceClient) CreateCharacter(ctx context.Context, in *CreateCharacterRequest, opts ...grpc.CallOption) (*CreateCharacterResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateCharacterResponse)
+	err := c.cc.Invoke(ctx, CharacterService_CreateCharacter_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *characterServiceClient) ListCharacters(ctx context.Context, in *ListCharactersRequest, opts ...grpc.CallOption) (*ListCharactersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListCharactersResponse)
+	err := c.cc.Invoke(ctx, CharacterService_ListCharacters_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// CharacterServiceServer is the server API for CharacterService service.
+// All implementations should embed UnimplementedCharacterServiceServer
+// for forward compatibility.
+type CharacterServiceServer interface {
+	CreateCharacter(context.Context, *CreateCharacterRequest) (*CreateCharacterResponse, error)
+	ListCharacters(context.Context, *ListCharactersRequest) (*ListCharactersResponse, error)
+}
+
+// UnimplementedCharacterServiceServer should be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedCharacterServiceServer struct{}
+
+func (UnimplementedCharacterServiceServer) CreateCharacter(context.Context, *CreateCharacterRequest) (*CreateCharacterResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateCharacter not implemented")
+}
+func (UnimplementedCharacterServiceServer) ListCharacters(context.Context, *ListCharactersRequest) (*ListCharactersResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListCharacters not implemented")
+}
+func (UnimplementedCharacterServiceServer) testEmbeddedByValue() {}
+
+// UnsafeCharacterServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to CharacterServiceServer will
+// result in compilation errors.
+type UnsafeCharacterServiceServer interface {
+	mustEmbedUnimplementedCharacterServiceServer()
+}
+
+func RegisterCharacterServiceServer(s grpc.ServiceRegistrar, srv CharacterServiceServer) {
+	// If the following call panics, it indicates UnimplementedCharacterServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&CharacterService_ServiceDesc, srv)
+}
+
+func _CharacterService_CreateCharacter_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateCharacterRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CharacterServiceServer).CreateCharacter(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CharacterService_CreateCharacter_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CharacterServiceServer).CreateCharacter(ctx, req.(*CreateCharacterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CharacterService_ListCharacters_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListCharactersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CharacterServiceServer).ListCharacters(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CharacterService_ListCharacters_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CharacterServiceServer).ListCharacters(ctx, req.(*ListCharactersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// CharacterService_ServiceDesc is the grpc.ServiceDesc for CharacterService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var CharacterService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "rpg.v1.CharacterService",
+	HandlerType: (*CharacterServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CreateCharacter",
+			Handler:    _CharacterService_CreateCharacter_Handler,
+		},
+		{
+			MethodName: "ListCharacters",
+			Handler:    _CharacterService_ListCharacters_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "rpg/v1/api.proto",
+}
+
+const (
+	GameService_ListGameServers_FullMethodName = "/rpg.v1.GameService/ListGameServers"
+	GameService_IssueJoinToken_FullMethodName  = "/rpg.v1.GameService/IssueJoinToken"
+)
+
+// GameServiceClient is the client API for GameService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// GameService issues the short-lived join token a client presents to the game server.
+type GameServiceClient interface {
+	ListGameServers(ctx context.Context, in *ListGameServersRequest, opts ...grpc.CallOption) (*ListGameServersResponse, error)
+	IssueJoinToken(ctx context.Context, in *IssueJoinTokenRequest, opts ...grpc.CallOption) (*IssueJoinTokenResponse, error)
+}
+
+type gameServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewGameServiceClient(cc grpc.ClientConnInterface) GameServiceClient {
+	return &gameServiceClient{cc}
+}
+
+func (c *gameServiceClient) ListGameServers(ctx context.Context, in *ListGameServersRequest, opts ...grpc.CallOption) (*ListGameServersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListGameServersResponse)
+	err := c.cc.Invoke(ctx, GameService_ListGameServers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gameServiceClient) IssueJoinToken(ctx context.Context, in *IssueJoinTokenRequest, opts ...grpc.CallOption) (*IssueJoinTokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IssueJoinTokenResponse)
+	err := c.cc.Invoke(ctx, GameService_IssueJoinToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// GameServiceServer is the server API for GameService service.
+// All implementations should embed UnimplementedGameServiceServer
+// for forward compatibility.
+//
+// GameService issues the short-lived join token a client presents to the game server.
+type GameServiceServer interface {
+	ListGameServers(context.Context, *ListGameServersRequest) (*ListGameServersResponse, error)
+	IssueJoinToken(context.Context, *IssueJoinTokenRequest) (*IssueJoinTokenResponse, error)
+}
+
+// UnimplementedGameServiceServer should be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedGameServiceServer struct{}
+
+func (UnimplementedGameServiceServer) ListGameServers(context.Context, *ListGameServersRequest) (*ListGameServersResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListGameServers not implemented")
+}
+func (UnimplementedGameServiceServer) IssueJoinToken(context.Context, *IssueJoinTokenRequest) (*IssueJoinTokenResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method IssueJoinToken not implemented")
+}
+func (UnimplementedGameServiceServer) testEmbeddedByValue() {}
+
+// UnsafeGameServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to GameServiceServer will
+// result in compilation errors.
+type UnsafeGameServiceServer interface {
+	mustEmbedUnimplementedGameServiceServer()
+}
+
+func RegisterGameServiceServer(s grpc.ServiceRegistrar, srv GameServiceServer) {
+	// If the following call panics, it indicates UnimplementedGameServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&GameService_ServiceDesc, srv)
+}
+
+func _GameService_ListGameServers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListGameServersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GameServiceServer).ListGameServers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GameService_ListGameServers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GameServiceServer).ListGameServers(ctx, req.(*ListGameServersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GameService_IssueJoinToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IssueJoinTokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GameServiceServer).IssueJoinToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GameService_IssueJoinToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GameServiceServer).IssueJoinToken(ctx, req.(*IssueJoinTokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// GameService_ServiceDesc is the grpc.ServiceDesc for GameService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var GameService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "rpg.v1.GameService",
+	HandlerType: (*GameServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListGameServers",
+			Handler:    _GameService_ListGameServers_Handler,
+		},
+		{
+			MethodName: "IssueJoinToken",
+			Handler:    _GameService_IssueJoinToken_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

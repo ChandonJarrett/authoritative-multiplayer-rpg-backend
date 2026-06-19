@@ -6,15 +6,16 @@ Use the devcontainer unless you have a specific reason not to. Local development
 
 ---
 
-## Devcontainer setup (recommended)
+## Devcontainer setup, recommended
 
 **Host machine requirements:**
+
 - Docker
 - VS Code with the Dev Containers extension, or the Dev Containers CLI
 
 Open the repository in the devcontainer. On first creation, the container automatically runs `make setup`, which:
 
-- copies `.env.example` -> `.env` (if missing)
+- copies `.env.example` -> `.env` if missing
 - installs Git hooks
 - installs Go tools
 - downloads Go modules
@@ -34,6 +35,10 @@ make proto         # regenerate protobuf after editing .proto files
 make run-api       # start the API server
 make run-game      # start the game server
 ```
+
+`make run-api` starts the ConnectRPC API server with health, readiness, metrics, middleware, auth, character, and game handoff handlers mounted.
+
+`make run-game` starts the game server lifecycle shell with HTTP health/readiness and Redis registry heartbeat. The ENet host and simulation loop are still incomplete.
 
 ---
 
@@ -67,18 +72,26 @@ Proto source files live in `proto/`. Generated Go code lives in `internal/protoc
 
 ```bash
 make proto           # regenerate from .proto sources, then fmt
-make proto-check     # verify committed files match sources (used in CI)
+make proto-check     # verify committed files match sources, used in CI
 make proto-lint      # lint .proto files against buf rules
 make proto-breaking  # check for wire-breaking changes against main
 ```
 
 Add a new RPC: edit the `.proto` file -> `make proto` -> implement the generated interface.
 
+Current API proto services include:
+
+- `SystemService`
+- `AuthService`
+- `CharacterService`
+- `GameService`
+
 ---
 
-## Local machine setup (advanced fallback)
+## Local machine setup, advanced fallback
 
 **Requirements:**
+
 - Go 1.26.4
 - Docker and Docker Compose
 - `libenet-dev`, `pkg-config`, `build-essential`, `postgresql-client`, `redis-tools`
@@ -101,7 +114,7 @@ make test      # verify everything works
 
 Inside the devcontainer, Compose sets two host overrides automatically:
 
-```
+```text
 POSTGRES_HOST=postgres
 REDIS_HOST=redis
 ```

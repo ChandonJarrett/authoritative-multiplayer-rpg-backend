@@ -48,8 +48,6 @@ func NewKeyBuilderFromConfig(cfg config.Config) (KeyBuilder, error) {
 }
 
 // MustNewKeyBuilder creates a KeyBuilder and panics if the segments are invalid.
-// Intended for program initialization and test fixtures where invalid input is
-// a programmer error, not a runtime condition.
 func MustNewKeyBuilder(app, env string) KeyBuilder {
 	kb, err := NewKeyBuilder(app, env)
 	if err != nil {
@@ -96,6 +94,12 @@ func (k KeyBuilder) ServersIndex() (string, error) {
 // CharacterLock returns the Redis key for a character lock.
 func (k KeyBuilder) CharacterLock(characterID string) (string, error) {
 	return k.build("character_lock", characterID)
+}
+
+// RateLimit returns the Redis key for rate-limit counters.
+func (k KeyBuilder) RateLimit(parts ...string) (string, error) {
+	all := append([]string{"rate_limit"}, parts...)
+	return k.build(all...)
 }
 
 func (k KeyBuilder) build(parts ...string) (string, error) {

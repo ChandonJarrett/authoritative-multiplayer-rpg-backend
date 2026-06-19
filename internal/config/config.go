@@ -21,10 +21,15 @@ const (
 	defaultLogLevel  = "info"
 	defaultLogFormat = "text"
 
-	defaultAPIHTTPAddr     = ":8080"
-	defaultGameENetAddr    = ":7777"
-	defaultGameHTTPAddr    = ":8081"
+	defaultAPIHTTPAddr       = ":8080"
+	defaultAPIAllowedOrigins = "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173"
+	defaultGameENetAddr      = ":7777"
+	defaultGameHTTPAddr      = ":8081"
+
 	defaultShutdownTimeout = 10 * time.Second
+
+	defaultAuthRateLimitWindow = time.Minute
+	defaultAuthRateLimitBurst  = 10
 
 	defaultPostgresHost    = "localhost"
 	defaultPostgresPort    = 5432
@@ -75,10 +80,15 @@ type Config struct {
 	LogLevel  string
 	LogFormat string
 
-	APIHTTPAddr     string
-	GameENetAddr    string
-	GameHTTPAddr    string
+	APIHTTPAddr       string
+	APIAllowedOrigins []string
+	GameENetAddr      string
+	GameHTTPAddr      string
+
 	ShutdownTimeout time.Duration
+
+	AuthRateLimitWindow time.Duration
+	AuthRateLimitBurst  int
 
 	Postgres PostgresConfig
 	Redis    RedisConfig
@@ -120,7 +130,7 @@ type RedisConfig struct {
 	MinIdleConns int
 }
 
-// Load reads .env (if present) then loads configuration from the process environment.
+// Load reads .env if present, then loads configuration from the process environment.
 func Load() (Config, error) {
 	_ = godotenv.Load()
 	return LoadWithSource(OSEnv{})
@@ -133,10 +143,8 @@ func LoadWithSource(source EnvSource) (Config, error) {
 		source = OSEnv{}
 	}
 
-	// Reject direct overrides of derived fields.
 	if v, ok := lookupTrimmed(source, "POSTGRES_URL"); ok && v != "" {
-		return Config{}, errors.New("POSTGRES_URL must not be set directly; " +
-			"use POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, and POSTGRES_SSLMODE")
+		return Config{}, errors.New("POSTGRES_URL must not be set directly; use POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, and POSTGRES_SSLMODE")
 	}
 	if v, ok := lookupTrimmed(source, "REDIS_ADDR"); ok && v != "" {
 		return Config{}, errors.New("REDIS_ADDR must not be set directly; use REDIS_HOST and REDIS_PORT")
@@ -153,10 +161,15 @@ func LoadWithSource(source EnvSource) (Config, error) {
 		LogLevel:  stringEnv(source, "LOG_LEVEL", defaultLogLevel),
 		LogFormat: stringEnv(source, "LOG_FORMAT", defaultLogFormat),
 
-		APIHTTPAddr:     stringEnv(source, "API_HTTP_ADDR", defaultAPIHTTPAddr),
-		GameENetAddr:    stringEnv(source, "GAME_ENET_ADDR", defaultGameENetAddr),
-		GameHTTPAddr:    stringEnv(source, "GAME_HTTP_ADDR", defaultGameHTTPAddr),
+		APIHTTPAddr:       stringEnv(source, "API_HTTP_ADDR", defaultAPIHTTPAddr),
+		APIAllowedOrigins: csvEnv(source, "API_ALLOWED_ORIGINS", defaultAPIAllowedOrigins),
+		GameENetAddr:      stringEnv(source, "GAME_ENET_ADDR", defaultGameENetAddr),
+		GameHTTPAddr:      stringEnv(source, "GAME_HTTP_ADDR", defaultGameHTTPAddr),
+
 		ShutdownTimeout: parsed.shutdownTimeout,
+
+		AuthRateLimitWindow: parsed.authRateLimitWindow,
+		AuthRateLimitBurst:  parsed.authRateLimitBurst,
 
 		Postgres: PostgresConfig{
 			Host:     stringEnv(source, "POSTGRES_HOST", defaultPostgresHost),
@@ -200,6 +213,9 @@ func LoadWithSource(source EnvSource) (Config, error) {
 type parsedValues struct {
 	shutdownTimeout time.Duration
 
+	authRateLimitWindow time.Duration
+	authRateLimitBurst  int
+
 	postgresPort              int
 	postgresMaxConns          int32
 	postgresMinConns          int32
@@ -234,42 +250,36 @@ func parseValues(source EnvSource) (parsedValues, error) {
 	v.shutdownTimeout, err = durationEnv(source, "SHUTDOWN_TIMEOUT", defaultShutdownTimeout)
 	collect(err)
 
+	v.authRateLimitWindow, err = durationEnv(source, "AUTH_RATE_LIMIT_WINDOW", defaultAuthRateLimitWindow)
+	collect(err)
+	v.authRateLimitBurst, err = intEnv(source, "AUTH_RATE_LIMIT_BURST", defaultAuthRateLimitBurst)
+	collect(err)
+
 	v.postgresPort, err = intEnv(source, "POSTGRES_PORT", defaultPostgresPort)
 	collect(err)
-
 	v.postgresMaxConns, err = int32Env(source, "POSTGRES_MAX_CONNS", defaultPostgresMaxConns)
 	collect(err)
-
 	v.postgresMinConns, err = int32Env(source, "POSTGRES_MIN_CONNS", defaultPostgresMinConns)
 	collect(err)
-
 	v.postgresMaxConnLifetime, err = durationEnv(source, "POSTGRES_MAX_CONN_LIFETIME", defaultPostgresMaxConnLifetime)
 	collect(err)
-
 	v.postgresMaxConnIdleTime, err = durationEnv(source, "POSTGRES_MAX_CONN_IDLE_TIME", defaultPostgresMaxConnIdleTime)
 	collect(err)
-
 	v.postgresHealthCheckPeriod, err = durationEnv(source, "POSTGRES_HEALTH_CHECK_PERIOD", defaultPostgresHealthCheckPeriod)
 	collect(err)
 
 	v.redisPort, err = intEnv(source, "REDIS_PORT", defaultRedisPort)
 	collect(err)
-
 	v.redisDB, err = intEnv(source, "REDIS_DB", defaultRedisDB)
 	collect(err)
-
 	v.redisDialTimeout, err = durationEnv(source, "REDIS_DIAL_TIMEOUT", defaultRedisDialTimeout)
 	collect(err)
-
 	v.redisReadTimeout, err = durationEnv(source, "REDIS_READ_TIMEOUT", defaultRedisReadTimeout)
 	collect(err)
-
 	v.redisWriteTimeout, err = durationEnv(source, "REDIS_WRITE_TIMEOUT", defaultRedisWriteTimeout)
 	collect(err)
-
 	v.redisPoolSize, err = intEnv(source, "REDIS_POOL_SIZE", defaultRedisPoolSize)
 	collect(err)
-
 	v.redisMinIdleConns, err = intEnv(source, "REDIS_MIN_IDLE_CONNS", defaultRedisMinIdleConns)
 	collect(err)
 
@@ -283,9 +293,11 @@ func postgresURLFromConfig(p PostgresConfig) string {
 		Host:   net.JoinHostPort(p.Host, strconv.Itoa(p.Port)),
 		Path:   "/" + p.Database,
 	}
+
 	q := u.Query()
 	q.Set("sslmode", p.SSLMode)
 	u.RawQuery = q.Encode()
+
 	return u.String()
 }
 
@@ -313,6 +325,9 @@ func (c Config) validate() error {
 	if strings.TrimSpace(c.APIHTTPAddr) == "" {
 		errs = append(errs, errors.New("API_HTTP_ADDR is required"))
 	}
+	if len(c.APIAllowedOrigins) == 0 {
+		errs = append(errs, errors.New("API_ALLOWED_ORIGINS must include at least one origin"))
+	}
 	if strings.TrimSpace(c.GameENetAddr) == "" {
 		errs = append(errs, errors.New("GAME_ENET_ADDR is required"))
 	}
@@ -322,7 +337,12 @@ func (c Config) validate() error {
 	if c.ShutdownTimeout <= 0 {
 		errs = append(errs, fmt.Errorf("SHUTDOWN_TIMEOUT must be > 0, got %s", c.ShutdownTimeout))
 	}
-
+	if c.AuthRateLimitWindow <= 0 {
+		errs = append(errs, fmt.Errorf("AUTH_RATE_LIMIT_WINDOW must be > 0, got %s", c.AuthRateLimitWindow))
+	}
+	if c.AuthRateLimitBurst < 1 {
+		errs = append(errs, fmt.Errorf("AUTH_RATE_LIMIT_BURST must be >= 1, got %d", c.AuthRateLimitBurst))
+	}
 	if err := c.Postgres.validate(); err != nil {
 		errs = append(errs, fmt.Errorf("postgres: %w", err))
 	}
@@ -410,9 +430,6 @@ func (r RedisConfig) validate() error {
 	return errors.Join(errs...)
 }
 
-// --- env helpers ---
-
-// stringEnv returns the trimmed value of key, or def if key is absent or blank.
 func stringEnv(source EnvSource, key, def string) string {
 	if v, ok := lookupTrimmed(source, key); ok {
 		return v
@@ -420,8 +437,6 @@ func stringEnv(source EnvSource, key, def string) string {
 	return def
 }
 
-// rawEnv returns the raw (untrimmed) value of key, or def if key is absent.
-// Use for secrets such as passwords where whitespace is significant.
 func rawEnv(source EnvSource, key, def string) string {
 	if v, ok := source.LookupEnv(key); ok {
 		return v
@@ -439,10 +454,12 @@ func intEnv(source EnvSource, key string, def int) (int, error) {
 	if !ok || v == "" {
 		return def, nil
 	}
+
 	n, err := strconv.Atoi(v)
 	if err != nil {
 		return 0, fmt.Errorf("%s must be an integer: %w", key, err)
 	}
+
 	return n, nil
 }
 
@@ -454,6 +471,7 @@ func int32Env(source EnvSource, key string, def int32) (int32, error) {
 	if n < math.MinInt32 || n > math.MaxInt32 {
 		return 0, fmt.Errorf("%s must fit in int32, got %d", key, n)
 	}
+
 	return int32(n), nil
 }
 
@@ -462,11 +480,28 @@ func durationEnv(source EnvSource, key string, def time.Duration) (time.Duration
 	if !ok || v == "" {
 		return def, nil
 	}
+
 	d, err := time.ParseDuration(v)
 	if err != nil {
 		return 0, fmt.Errorf("%s must be a valid Go duration (e.g. 10s, 1m): %w", key, err)
 	}
+
 	return d, nil
+}
+
+func csvEnv(source EnvSource, key, def string) []string {
+	raw := stringEnv(source, key, def)
+	parts := strings.Split(raw, ",")
+
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			values = append(values, part)
+		}
+	}
+
+	return values
 }
 
 func oneOf(value string, allowed ...string) bool {
@@ -475,5 +510,6 @@ func oneOf(value string, allowed ...string) bool {
 			return true
 		}
 	}
+
 	return false
 }
