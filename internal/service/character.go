@@ -4,17 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/validate"
 	"github.com/google/uuid"
-)
 
-// CharacterStore is the durable character storage required by character and handoff services.
-type CharacterStore interface {
-	CreateCharacter(ctx context.Context, character domain.Character) error
-	ListCharactersByUserID(ctx context.Context, userID string) ([]domain.Character, error)
-	GetCharacterByID(ctx context.Context, characterID string) (domain.Character, error)
-}
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store"
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/validate"
+)
 
 // DefaultMapID is the ID of the default map new characters start on.
 const DefaultMapID = "starter_zone"
@@ -24,15 +19,14 @@ var DefaultSpawn = domain.Vec3{X: 0, Y: 0, Z: 0}
 
 // CharacterService provides character operations.
 type CharacterService struct {
-	characters CharacterStore
+	characters store.CharacterStore
 }
 
 // NewCharacterService creates a CharacterService.
-func NewCharacterService(characters CharacterStore) (*CharacterService, error) {
+func NewCharacterService(characters store.CharacterStore) (*CharacterService, error) {
 	if characters == nil {
-		return nil, fmt.Errorf("character service character store: %w", domain.ErrInternal)
+		return nil, fmt.Errorf("character store is required: %w", domain.ErrInvalidArgument)
 	}
-
 	return &CharacterService{characters: characters}, nil
 }
 

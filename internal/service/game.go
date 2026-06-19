@@ -8,28 +8,16 @@ import (
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/auth"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/cache"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/validate"
 )
 
-// JoinTokenStore is the ephemeral join-token storage required by GameHandoffService.
-type JoinTokenStore interface {
-	CreateJoinToken(ctx context.Context, token domain.JoinToken) error
-	ConsumeJoinToken(ctx context.Context, token string) (domain.JoinToken, error)
-}
-
-// GameServerStore is the ephemeral game-server registry required by GameHandoffService.
-type GameServerStore interface {
-	RegisterGameServer(ctx context.Context, server domain.GameServer) error
-	DeregisterGameServer(ctx context.Context, serverID string) error
-	ListGameServers(ctx context.Context) ([]domain.GameServer, error)
-	GetGameServerByID(ctx context.Context, serverID string) (domain.GameServer, error)
-}
-
-// GameService provides game-related operations.
+// GameService provides game-related API handoff operations.
 type GameService struct {
-	characters CharacterStore
-	joinTokens JoinTokenStore
-	servers    GameServerStore
+	characters store.CharacterStore
+	joinTokens store.JoinTokenStore
+	servers    store.GameServerStore
+	now        func() time.Time
 }
 
 // IssueJoinTokenResult represents the result of issuing a join token.
@@ -40,45 +28,40 @@ type IssueJoinTokenResult struct {
 	ExpiresInSeconds int64
 }
 
-// NewGameService creates a new instance of GameService with the provided dependencies.
+// NewGameService creates a new GameService.
 func NewGameService(
-	characters CharacterStore,
-	joinTokens JoinTokenStore,
-	servers GameServerStore,
+	characters store.CharacterStore,
+	joinTokens store.JoinTokenStore,
+	servers store.GameServerStore,
 ) (*GameService, error) {
 	if characters == nil {
-		return nil, fmt.Errorf("game service character store: %w", domain.ErrInternal)
+		return nil, fmt.Errorf("character store is required: %w", domain.ErrInvalidArgument)
 	}
 	if joinTokens == nil {
-		return nil, fmt.Errorf("game service join token store: %w", domain.ErrInternal)
+		return nil, fmt.Errorf("join token store is required: %w", domain.ErrInvalidArgument)
 	}
 	if servers == nil {
-		return nil, fmt.Errorf("game service server store: %w", domain.ErrInternal)
+		return nil, fmt.Errorf("game server store is required: %w", domain.ErrInvalidArgument)
 	}
 
 	return &GameService{
 		characters: characters,
 		joinTokens: joinTokens,
 		servers:    servers,
+		now:        time.Now,
 	}, nil
 }
 
-// ListGameServers returns the currently registered, non-expired game servers.
+// ListGameServers returns currently registered game servers.
 func (s *GameService) ListGameServers(ctx context.Context) ([]domain.GameServer, error) {
 	if s == nil {
 		return nil, domain.ErrInternal
 	}
 
-	servers, err := s.servers.ListGameServers(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return servers, nil
+	return s.servers.ListGameServers(ctx)
 }
 
 // IssueJoinToken creates a short-lived join token for one character and one game server.
-// If gameServerID is empty, it auto-picks the first available server for backward compatibility.
 func (s *GameService) IssueJoinToken(
 	ctx context.Context,
 	userID string,
@@ -103,7 +86,6 @@ func (s *GameService) IssueJoinToken(
 	if err != nil {
 		return IssueJoinTokenResult{}, err
 	}
-
 	if character.UserID != userID {
 		return IssueJoinTokenResult{}, domain.ErrPermissionDenied
 	}
@@ -115,10 +97,13 @@ func (s *GameService) IssueJoinToken(
 
 	token, err := auth.NewJoinToken()
 	if err != nil {
-		return IssueJoinTokenResult{}, err
+		return IssueJoinTokenResult{}, fmt.Errorf("create join token: %w", err)
 	}
 
-	expiresAt := time.Now().UTC().Add(cache.DefaultJoinTokenTTL)
+	now := s.now
+	if now == nil {
+		now = time.Now
+	}
 
 	joinToken := domain.JoinToken{
 		Token:       token,
@@ -126,7 +111,7 @@ func (s *GameService) IssueJoinToken(
 		CharacterID: characterID,
 		ServerID:    server.ID,
 		ServerAddr:  server.Addr,
-		ExpiresAt:   expiresAt,
+		ExpiresAt:   now().UTC().Add(cache.DefaultJoinTokenTTL),
 	}
 
 	if err := s.joinTokens.CreateJoinToken(ctx, joinToken); err != nil {
@@ -142,29 +127,27 @@ func (s *GameService) IssueJoinToken(
 }
 
 func (s *GameService) selectServer(ctx context.Context, requestedServerID string) (domain.GameServer, error) {
+	if requestedServerID != "" {
+		requestedServerID, err := validate.RequiredID("game server ID", requestedServerID)
+		if err != nil {
+			return domain.GameServer{}, err
+		}
+
+		server, err := s.servers.GetGameServerByID(ctx, requestedServerID)
+		if err != nil {
+			return domain.GameServer{}, err
+		}
+
+		return server, nil
+	}
+
 	servers, err := s.servers.ListGameServers(ctx)
 	if err != nil {
 		return domain.GameServer{}, err
 	}
-
 	if len(servers) == 0 {
 		return domain.GameServer{}, domain.ErrUnavailable
 	}
 
-	if requestedServerID == "" {
-		return servers[0], nil
-	}
-
-	requestedServerID, err = validate.RequiredID("game server ID", requestedServerID)
-	if err != nil {
-		return domain.GameServer{}, err
-	}
-
-	for _, server := range servers {
-		if server.ID == requestedServerID {
-			return server, nil
-		}
-	}
-
-	return domain.GameServer{}, domain.ErrNotFound
+	return servers[0], nil
 }

@@ -9,28 +9,14 @@ import (
 
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/auth"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/validate"
 )
 
-// UserStore is the durable user storage required by AuthService.
-type UserStore interface {
-	CreateUser(ctx context.Context, user domain.User) error
-	GetUserByEmail(ctx context.Context, email string) (domain.User, error)
-	GetUserByID(ctx context.Context, userID string) (domain.User, error)
-}
-
-// SessionStore is the ephemeral session storage required by AuthService.
-type SessionStore interface {
-	CreateSession(ctx context.Context, sessionID, userID string) error
-	GetSessionUserID(ctx context.Context, sessionID string) (string, error)
-	DeleteSession(ctx context.Context, sessionID string) error
-	DeleteUserSessions(ctx context.Context, userID string) error
-}
-
 // AuthService owns registration, login, and session revocation.
 type AuthService struct {
-	users    UserStore
-	sessions SessionStore
+	users    store.UserStore
+	sessions store.SessionStore
 }
 
 // AuthResult is returned after successful authentication.
@@ -40,7 +26,7 @@ type AuthResult struct {
 }
 
 // NewAuthService creates an AuthService.
-func NewAuthService(users UserStore, sessions SessionStore) (*AuthService, error) {
+func NewAuthService(users store.UserStore, sessions store.SessionStore) (*AuthService, error) {
 	if users == nil {
 		return nil, fmt.Errorf("user store is required: %w", domain.ErrInvalidArgument)
 	}
@@ -55,10 +41,15 @@ func NewAuthService(users UserStore, sessions SessionStore) (*AuthService, error
 
 // Register creates a new user account and immediately creates a session.
 func (s *AuthService) Register(ctx context.Context, email, password string) (AuthResult, error) {
+	if s == nil {
+		return AuthResult{}, domain.ErrInternal
+	}
+
 	email, err := validate.Email(email)
 	if err != nil {
 		return AuthResult{}, err
 	}
+
 	if err := auth.ValidatePassword(password); err != nil {
 		return AuthResult{}, err
 	}
@@ -83,6 +74,10 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (Aut
 
 // Login authenticates a user and creates a new session.
 func (s *AuthService) Login(ctx context.Context, email, password string) (AuthResult, error) {
+	if s == nil {
+		return AuthResult{}, domain.ErrInternal
+	}
+
 	email, err := validate.Email(email)
 	if err != nil {
 		return AuthResult{}, err
@@ -102,19 +97,29 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (AuthRe
 
 // RevokeSession deletes a single session token.
 func (s *AuthService) RevokeSession(ctx context.Context, sessionToken string) error {
+	if s == nil {
+		return domain.ErrInternal
+	}
+
 	sessionToken, err := validate.RequiredID("session token", sessionToken)
 	if err != nil {
 		return err
 	}
+
 	return s.sessions.DeleteSession(ctx, sessionToken)
 }
 
 // RevokeUserSessions deletes all known sessions for a user.
 func (s *AuthService) RevokeUserSessions(ctx context.Context, userID string) error {
+	if s == nil {
+		return domain.ErrInternal
+	}
+
 	userID, err := validate.RequiredID("user ID", userID)
 	if err != nil {
 		return err
 	}
+
 	return s.sessions.DeleteUserSessions(ctx, userID)
 }
 
