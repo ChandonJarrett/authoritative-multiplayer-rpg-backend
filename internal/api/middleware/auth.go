@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/rpcerror"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
 	redisstore "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store/redis"
@@ -33,7 +34,7 @@ func NewAuthInterceptor(sessions redisstore.SessionStore, publicMethods ...map[s
 				return next(ctx, req)
 			}
 
-			token, err := bearerToken(req.Header().Get("Authorization"))
+			token, err := BearerToken(req.Header().Get("Authorization"))
 			if err != nil {
 				return nil, rpcerror.ToConnectError(err)
 			}
@@ -49,9 +50,9 @@ func NewAuthInterceptor(sessions redisstore.SessionStore, publicMethods ...map[s
 	}
 }
 
-func bearerToken(header string) (string, error) {
+// BearerToken extracts a bearer token from an Authorization header.
+func BearerToken(header string) (string, error) {
 	const prefix = "Bearer "
-
 	if !strings.HasPrefix(header, prefix) {
 		return "", domain.ErrUnauthenticated
 	}

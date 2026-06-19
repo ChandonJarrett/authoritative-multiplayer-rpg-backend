@@ -28,6 +28,7 @@ message PingResponse {
 service AuthService {
   rpc Register(RegisterRequest) returns (RegisterResponse);
   rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
 }
 
 message RegisterRequest {
@@ -49,6 +50,10 @@ message LoginResponse {
   string user_id = 1;
   string session_token = 2;
 }
+
+message LogoutRequest {}
+
+message LogoutResponse {}
 
 // --- Characters ---
 
@@ -100,9 +105,6 @@ message GameServerSummary {
 
 message IssueJoinTokenRequest {
   string character_id = 1;
-
-  // Optional.
-  // If empty, API auto-selects an available game server.
   string game_server_id = 2;
 }
 
