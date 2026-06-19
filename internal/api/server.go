@@ -20,6 +20,9 @@ const defaultReadyCheckTimeout = 2 * time.Second
 // ReadyCheck verifies whether dependencies required by the API are available.
 type ReadyCheck func(ctx context.Context) error
 
+// HTTPMiddleware wraps an HTTP handler.
+type HTTPMiddleware func(http.Handler) http.Handler
+
 // Handlers groups all ConnectRPC handlers for the API server.
 type Handlers struct {
 	System    rpgv1connect.SystemServiceHandler
@@ -35,6 +38,8 @@ type Options struct {
 	ShutdownTimeout   time.Duration
 	AllowedOrigins    []string
 	UnaryInterceptors []connect.Interceptor
+	HTTPMiddleware    HTTPMiddleware
+	MetricsHandler    http.Handler
 	ReadyCheck        ReadyCheck
 	Handlers          Handlers
 }
@@ -81,6 +86,10 @@ func NewServer(opts Options) (*Server, error) {
 	mux.HandleFunc("/healthz", healthHandler)
 	mux.HandleFunc("/readyz", readyHandler(opts.ReadyCheck, defaultReadyCheckTimeout))
 
+	if opts.MetricsHandler != nil {
+		mux.Handle("/metrics", opts.MetricsHandler)
+	}
+
 	connectOptions := make([]connect.HandlerOption, 0, len(opts.UnaryInterceptors))
 	for _, interceptor := range opts.UnaryInterceptors {
 		connectOptions = append(connectOptions, connect.WithInterceptors(interceptor))
@@ -104,15 +113,16 @@ func NewServer(opts Options) (*Server, error) {
 		mux.Handle(gamePath, gameHTTPHandler)
 	}
 
-	handler := WithPanicRecovery(
-		log,
-		WithRequestLogging(
-			log,
-			WithRequestID(
-				WithCORS(mux, allowedOrigins),
-			),
-		),
-	)
+	var handler http.Handler = mux
+	handler = WithCORS(handler, allowedOrigins)
+
+	if opts.HTTPMiddleware != nil {
+		handler = opts.HTTPMiddleware(handler)
+	}
+
+	handler = WithRequestID(handler)
+	handler = WithRequestLogging(log, handler)
+	handler = WithPanicRecovery(log, handler)
 
 	httpServer := &http.Server{
 		Addr:              opts.Addr,
@@ -207,5 +217,6 @@ func readyHandler(check ReadyCheck, timeout time.Duration) http.HandlerFunc {
 func writeJSON(w http.ResponseWriter, statusCode int, body string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
+
 	_, _ = w.Write([]byte(body))
 }
