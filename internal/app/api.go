@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"connectrpc.com/connect"
 
@@ -52,11 +51,17 @@ func NewAPIServer(rt *Runtime) (*api.Server, error) {
 
 	userStore := postgresstore.NewUserStore(rt.Postgres)
 	characterStore := postgresstore.NewCharacterStore(rt.Postgres)
+
 	sessionStore := redisstore.NewSessionStore(rt.Redis, keys)
 	joinTokenStore := redisstore.NewJoinTokenStore(rt.Redis, keys)
 	gameServerStore := redisstore.NewGameServerStore(rt.Redis, keys)
 
-	authLimiter, err := redisstore.NewRateLimiter(rt.Redis, keys, time.Minute, 10)
+	authLimiter, err := redisstore.NewRateLimiter(
+		rt.Redis,
+		keys,
+		rt.Config.AuthRateLimitWindow,
+		rt.Config.AuthRateLimitBurst,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("create auth rate limiter: %w", err)
 	}
@@ -84,8 +89,8 @@ func NewAPIServer(rt *Runtime) (*api.Server, error) {
 		UnaryInterceptors: []connect.Interceptor{
 			api.NewRPCLoggingInterceptor(rt.Log),
 			api.NewAuthRateLimitInterceptor(api.RateLimitConfig{
-				Window:  time.Minute,
-				Burst:   10,
+				Window:  rt.Config.AuthRateLimitWindow,
+				Burst:   rt.Config.AuthRateLimitBurst,
 				Limiter: authLimiter,
 			}),
 			api.NewAuthInterceptor(sessionStore, api.PublicProcedures()),

@@ -15,14 +15,6 @@ import (
 	rpgv1connect "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1/rpgv1connect"
 )
 
-const defaultReadyCheckTimeout = 2 * time.Second
-
-// ReadyCheck verifies whether dependencies required by the API are available.
-type ReadyCheck func(ctx context.Context) error
-
-// HTTPMiddleware wraps an HTTP handler.
-type HTTPMiddleware func(http.Handler) http.Handler
-
 // Handlers groups all ConnectRPC handlers for the API server.
 type Handlers struct {
 	System    rpgv1connect.SystemServiceHandler
@@ -38,7 +30,7 @@ type Options struct {
 	ShutdownTimeout   time.Duration
 	AllowedOrigins    []string
 	UnaryInterceptors []connect.Interceptor
-	HTTPMiddleware    HTTPMiddleware
+	HTTPMiddleware    Middleware
 	MetricsHandler    http.Handler
 	ReadyCheck        ReadyCheck
 	Handlers          Handlers
@@ -83,46 +75,14 @@ func NewServer(opts Options) (*Server, error) {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", healthHandler)
-	mux.HandleFunc("/readyz", readyHandler(opts.ReadyCheck, defaultReadyCheckTimeout))
+	mountHealthRoutes(mux, opts.ReadyCheck)
+	mountMetricsRoute(mux, opts.MetricsHandler)
+	mountRPCRoutes(mux, opts.Handlers, opts.UnaryInterceptors)
 
-	if opts.MetricsHandler != nil {
-		mux.Handle("/metrics", opts.MetricsHandler)
-	}
-
-	connectOptions := make([]connect.HandlerOption, 0, len(opts.UnaryInterceptors))
-	for _, interceptor := range opts.UnaryInterceptors {
-		connectOptions = append(connectOptions, connect.WithInterceptors(interceptor))
-	}
-
-	systemPath, systemHTTPHandler := rpgv1connect.NewSystemServiceHandler(opts.Handlers.System, connectOptions...)
-	mux.Handle(systemPath, systemHTTPHandler)
-
-	if opts.Handlers.Auth != nil {
-		authPath, authHTTPHandler := rpgv1connect.NewAuthServiceHandler(opts.Handlers.Auth, connectOptions...)
-		mux.Handle(authPath, authHTTPHandler)
-	}
-
-	if opts.Handlers.Character != nil {
-		characterPath, characterHTTPHandler := rpgv1connect.NewCharacterServiceHandler(opts.Handlers.Character, connectOptions...)
-		mux.Handle(characterPath, characterHTTPHandler)
-	}
-
-	if opts.Handlers.Game != nil {
-		gamePath, gameHTTPHandler := rpgv1connect.NewGameServiceHandler(opts.Handlers.Game, connectOptions...)
-		mux.Handle(gamePath, gameHTTPHandler)
-	}
-
-	var handler http.Handler = mux
-	handler = WithCORS(handler, allowedOrigins)
-
-	if opts.HTTPMiddleware != nil {
-		handler = opts.HTTPMiddleware(handler)
-	}
-
-	handler = WithRequestID(handler)
-	handler = WithRequestLogging(log, handler)
-	handler = WithPanicRecovery(log, handler)
+	handler := ChainMiddleware(
+		mux,
+		StandardMiddleware(log, allowedOrigins, opts.HTTPMiddleware)...,
+	)
 
 	httpServer := &http.Server{
 		Addr:              opts.Addr,
@@ -190,33 +150,54 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 }
 
-func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, `{"status":"ok"}`)
+func mountHealthRoutes(mux *http.ServeMux, readyCheck ReadyCheck) {
+	mux.HandleFunc("/healthz", healthHandler)
+	mux.HandleFunc("/readyz", readyHandler(readyCheck, defaultReadyCheckTimeout))
 }
 
-func readyHandler(check ReadyCheck, timeout time.Duration) http.HandlerFunc {
-	if timeout <= 0 {
-		timeout = defaultReadyCheckTimeout
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		if check != nil {
-			ctx, cancel := context.WithTimeout(r.Context(), timeout)
-			defer cancel()
-
-			if err := check(ctx); err != nil {
-				writeJSON(w, http.StatusServiceUnavailable, `{"status":"not_ready"}`)
-				return
-			}
-		}
-
-		writeJSON(w, http.StatusOK, `{"status":"ready"}`)
+func mountMetricsRoute(mux *http.ServeMux, metricsHandler http.Handler) {
+	if metricsHandler != nil {
+		mux.Handle("/metrics", metricsHandler)
 	}
 }
 
-func writeJSON(w http.ResponseWriter, statusCode int, body string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
+func mountRPCRoutes(
+	mux *http.ServeMux,
+	handlers Handlers,
+	interceptors []connect.Interceptor,
+) {
+	connectOptions := make([]connect.HandlerOption, 0, len(interceptors))
+	for _, interceptor := range interceptors {
+		connectOptions = append(connectOptions, connect.WithInterceptors(interceptor))
+	}
 
-	_, _ = w.Write([]byte(body))
+	systemPath, systemHTTPHandler := rpgv1connect.NewSystemServiceHandler(
+		handlers.System,
+		connectOptions...,
+	)
+	mux.Handle(systemPath, systemHTTPHandler)
+
+	if handlers.Auth != nil {
+		authPath, authHTTPHandler := rpgv1connect.NewAuthServiceHandler(
+			handlers.Auth,
+			connectOptions...,
+		)
+		mux.Handle(authPath, authHTTPHandler)
+	}
+
+	if handlers.Character != nil {
+		characterPath, characterHTTPHandler := rpgv1connect.NewCharacterServiceHandler(
+			handlers.Character,
+			connectOptions...,
+		)
+		mux.Handle(characterPath, characterHTTPHandler)
+	}
+
+	if handlers.Game != nil {
+		gamePath, gameHTTPHandler := rpgv1connect.NewGameServiceHandler(
+			handlers.Game,
+			connectOptions...,
+		)
+		mux.Handle(gamePath, gameHTTPHandler)
+	}
 }
