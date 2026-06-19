@@ -5,8 +5,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/middleware"
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/rpcerror"
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api"
 	rpgv1 "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1"
 	rpgv1connect "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1/rpgv1connect"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/service"
@@ -14,28 +13,28 @@ import (
 
 var _ rpgv1connect.GameServiceHandler = (*GameHandler)(nil)
 
-// GameHandler implements the rpgv1connect.GameServiceHandler interface, which defines the RPC methods for game-related operations.
+// GameHandler implements game handoff RPCs.
 type GameHandler struct {
 	games *service.GameService
 }
 
-// NewGameHandler creates a new instance of GameHandler with the provided GameService.
+// NewGameHandler creates a GameHandler.
 func NewGameHandler(games *service.GameService) *GameHandler {
 	return &GameHandler{games: games}
 }
 
-// ListGameServers handles the RPC request to list available game servers.
+// ListGameServers lists available game servers.
 func (h *GameHandler) ListGameServers(
 	ctx context.Context,
 	_ *connect.Request[rpgv1.ListGameServersRequest],
 ) (*connect.Response[rpgv1.ListGameServersResponse], error) {
-	if _, err := middleware.RequireAuthUser(ctx); err != nil {
-		return nil, rpcerror.ToConnectError(err)
+	if _, err := api.RequireAuthUser(ctx); err != nil {
+		return nil, api.ToConnectError(err)
 	}
 
 	servers, err := h.games.ListGameServers(ctx)
 	if err != nil {
-		return nil, rpcerror.ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	out := make([]*rpgv1.GameServerSummary, 0, len(servers))
@@ -51,14 +50,14 @@ func (h *GameHandler) ListGameServers(
 	}), nil
 }
 
-// IssueJoinToken handles the RPC request to issue a join token for a player to connect to a game server.
+// IssueJoinToken issues a short-lived token for game server handoff.
 func (h *GameHandler) IssueJoinToken(
 	ctx context.Context,
 	req *connect.Request[rpgv1.IssueJoinTokenRequest],
 ) (*connect.Response[rpgv1.IssueJoinTokenResponse], error) {
-	user, err := middleware.RequireAuthUser(ctx)
+	user, err := api.RequireAuthUser(ctx)
 	if err != nil {
-		return nil, rpcerror.ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	result, err := h.games.IssueJoinToken(
@@ -68,7 +67,7 @@ func (h *GameHandler) IssueJoinToken(
 		req.Msg.GameServerId,
 	)
 	if err != nil {
-		return nil, rpcerror.ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	return connect.NewResponse(&rpgv1.IssueJoinTokenResponse{

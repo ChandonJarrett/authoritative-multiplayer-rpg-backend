@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/middleware"
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/rpcerror"
+
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
 	rpgv1 "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1"
 	rpgv1connect "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1/rpgv1connect"
@@ -14,29 +14,29 @@ import (
 
 var _ rpgv1connect.CharacterServiceHandler = (*CharacterHandler)(nil)
 
-// CharacterHandler implements the gRPC service handler for character-related operations.
+// CharacterHandler implements character RPCs.
 type CharacterHandler struct {
 	characters *service.CharacterService
 }
 
-// NewCharacterHandler creates a new CharacterHandler with the given CharacterService.
+// NewCharacterHandler creates a CharacterHandler.
 func NewCharacterHandler(characters *service.CharacterService) *CharacterHandler {
 	return &CharacterHandler{characters: characters}
 }
 
-// CreateCharacter handles the CreateCharacter gRPC request, creating a new character for the authenticated user.
+// CreateCharacter creates a character for the authenticated user.
 func (h *CharacterHandler) CreateCharacter(
 	ctx context.Context,
 	req *connect.Request[rpgv1.CreateCharacterRequest],
 ) (*connect.Response[rpgv1.CreateCharacterResponse], error) {
-	user, err := middleware.RequireAuthUser(ctx)
+	user, err := api.RequireAuthUser(ctx)
 	if err != nil {
-		return nil, rpcerror.ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	characterID, err := h.characters.CreateCharacter(ctx, user.UserID, req.Msg.Name)
 	if err != nil {
-		return nil, rpcerror.ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	return connect.NewResponse(&rpgv1.CreateCharacterResponse{
@@ -44,19 +44,19 @@ func (h *CharacterHandler) CreateCharacter(
 	}), nil
 }
 
-// ListCharacters handles the ListCharacters gRPC request, listing all characters for the authenticated user.
+// ListCharacters lists all characters for the authenticated user.
 func (h *CharacterHandler) ListCharacters(
 	ctx context.Context,
 	_ *connect.Request[rpgv1.ListCharactersRequest],
 ) (*connect.Response[rpgv1.ListCharactersResponse], error) {
-	user, err := middleware.RequireAuthUser(ctx)
+	user, err := api.RequireAuthUser(ctx)
 	if err != nil {
-		return nil, rpcerror.ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	characters, err := h.characters.ListCharacters(ctx, user.UserID)
 	if err != nil {
-		return nil, rpcerror.ToConnectError(err)
+		return nil, api.ToConnectError(err)
 	}
 
 	out := make([]*rpgv1.CharacterSummary, 0, len(characters))

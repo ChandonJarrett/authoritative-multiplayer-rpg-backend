@@ -1,4 +1,4 @@
-// Package api contains HTTP and ConnectRPC server wiring.
+// Package api implements the ConnectRPC API server and all related HTTP middleware.
 package api
 
 import (
@@ -12,7 +12,6 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/middleware"
 	rpgv1connect "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1/rpgv1connect"
 )
 
@@ -105,12 +104,12 @@ func NewServer(opts Options) (*Server, error) {
 		mux.Handle(gamePath, gameHTTPHandler)
 	}
 
-	handler := middleware.WithPanicRecovery(
+	handler := WithPanicRecovery(
 		log,
-		middleware.WithRequestLogging(
+		WithRequestLogging(
 			log,
-			middleware.WithRequestID(
-				middleware.WithCORS(mux, allowedOrigins),
+			WithRequestID(
+				WithCORS(mux, allowedOrigins),
 			),
 		),
 	)

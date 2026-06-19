@@ -9,7 +9,6 @@ import (
 
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/handlers"
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api/middleware"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/cache"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/db"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/service"
@@ -53,7 +52,6 @@ func NewAPIServer(rt *Runtime) (*api.Server, error) {
 
 	userStore := postgresstore.NewUserStore(rt.Postgres)
 	characterStore := postgresstore.NewCharacterStore(rt.Postgres)
-
 	sessionStore := redisstore.NewSessionStore(rt.Redis, keys)
 	joinTokenStore := redisstore.NewJoinTokenStore(rt.Redis, keys)
 	gameServerStore := redisstore.NewGameServerStore(rt.Redis, keys)
@@ -84,13 +82,13 @@ func NewAPIServer(rt *Runtime) (*api.Server, error) {
 		ShutdownTimeout: rt.Config.ShutdownTimeout,
 		AllowedOrigins:  rt.Config.APIAllowedOrigins,
 		UnaryInterceptors: []connect.Interceptor{
-			middleware.NewRPCLoggingInterceptor(rt.Log),
-			middleware.NewAuthRateLimitInterceptor(middleware.RateLimitConfig{
+			api.NewRPCLoggingInterceptor(rt.Log),
+			api.NewAuthRateLimitInterceptor(api.RateLimitConfig{
 				Window:  time.Minute,
 				Burst:   10,
 				Limiter: authLimiter,
 			}),
-			middleware.NewAuthInterceptor(sessionStore, middleware.PublicProcedures()),
+			api.NewAuthInterceptor(sessionStore, api.PublicProcedures()),
 		},
 		ReadyCheck: newAPIReadyCheck(rt),
 		Handlers: api.Handlers{
@@ -107,9 +105,11 @@ func newAPIReadyCheck(rt *Runtime) api.ReadyCheck {
 		if err := db.Health(ctx, rt.Postgres); err != nil {
 			return fmt.Errorf("postgres: %w", err)
 		}
+
 		if err := cache.Health(ctx, rt.Redis); err != nil {
 			return fmt.Errorf("redis: %w", err)
 		}
+
 		return nil
 	}
 }

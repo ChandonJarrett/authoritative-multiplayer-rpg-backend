@@ -1,5 +1,4 @@
-// Package rpcerror provides utilities for mapping internal domain errors to stable ConnectRPC errors.
-package rpcerror
+package api
 
 import (
 	"errors"
@@ -10,14 +9,13 @@ import (
 )
 
 // ToConnectError maps internal domain errors to stable ConnectRPC errors.
-// Internal error details are hidden from clients. Log server-side before returning when needed.
+// Internal error details are intentionally hidden from clients.
 func ToConnectError(err error) error {
 	if err == nil {
 		return nil
 	}
 
 	code, message := connectCodeAndMessage(err)
-
 	return connect.NewError(code, errors.New(message))
 }
 
