@@ -18,6 +18,17 @@ import (
 	redisstore "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store/redis"
 )
 
+// apiStores holds all concrete store instances created during API server startup.
+type apiStores struct {
+	user        store.UserStore
+	character   store.CharacterStore
+	session     store.SessionStore
+	joinToken   store.JoinTokenStore
+	gameServer  store.GameServerStore
+	authLimiter api.Limiter
+}
+
+// apiDeps groups all resolved API server dependencies.
 type apiDeps struct {
 	sessionStore store.SessionStore
 	authLimiter  api.Limiter
@@ -29,18 +40,32 @@ type apiDeps struct {
 	metrics *observability.Metrics
 }
 
+// newAPIDeps creates all API server dependencies from shared runtime resources.
 func newAPIDeps(rt *Runtime) (apiDeps, error) {
 	keys, err := cache.NewKeyBuilderFromConfig(rt.Config)
 	if err != nil {
 		return apiDeps{}, fmt.Errorf("create cache key builder: %w", err)
 	}
 
-	userStore := postgresstore.NewUserStore(rt.Postgres)
-	characterStore := postgresstore.NewCharacterStore(rt.Postgres)
+	stores, err := newAPIStores(rt, keys)
+	if err != nil {
+		return apiDeps{}, err
+	}
 
-	sessionStore := redisstore.NewSessionStore(rt.Redis, keys)
-	joinTokenStore := redisstore.NewJoinTokenStore(rt.Redis, keys)
-	gameServerStore := redisstore.NewGameServerStore(rt.Redis, keys)
+	return newAPIServices(stores)
+}
+
+// newAPIStores creates all concrete store instances.
+func newAPIStores(rt *Runtime, keys cache.KeyBuilder) (apiStores, error) {
+	sessionStore, err := redisstore.NewSessionStore(rt.Redis, keys, cache.DefaultSessionTTL)
+	if err != nil {
+		return apiStores{}, fmt.Errorf("create session store: %w", err)
+	}
+
+	gameServerStore, err := redisstore.NewGameServerStore(rt.Redis, keys, cache.DefaultServerTTL)
+	if err != nil {
+		return apiStores{}, fmt.Errorf("create game server store: %w", err)
+	}
 
 	authLimiter, err := redisstore.NewRateLimiter(
 		rt.Redis,
@@ -49,27 +74,44 @@ func newAPIDeps(rt *Runtime) (apiDeps, error) {
 		rt.Config.AuthRateLimitBurst,
 	)
 	if err != nil {
-		return apiDeps{}, fmt.Errorf("create auth rate limiter: %w", err)
+		return apiStores{}, fmt.Errorf("create auth rate limiter: %w", err)
 	}
 
-	authService, err := service.NewAuthService(userStore, sessionStore)
+	return apiStores{
+		user:        postgresstore.NewUserStore(rt.Postgres),
+		character:   postgresstore.NewCharacterStore(rt.Postgres),
+		session:     sessionStore,
+		joinToken:   redisstore.NewJoinTokenStore(rt.Redis, keys),
+		gameServer:  gameServerStore,
+		authLimiter: authLimiter,
+	}, nil
+}
+
+// newAPIServices creates all service instances from resolved stores.
+func newAPIServices(stores apiStores) (apiDeps, error) {
+	authService, err := service.NewAuthService(stores.user, stores.session)
 	if err != nil {
 		return apiDeps{}, fmt.Errorf("create auth service: %w", err)
 	}
 
-	characterService, err := service.NewCharacterService(characterStore)
+	characterService, err := service.NewCharacterService(stores.character)
 	if err != nil {
 		return apiDeps{}, fmt.Errorf("create character service: %w", err)
 	}
 
-	gameService, err := service.NewGameService(characterStore, joinTokenStore, gameServerStore)
+	gameService, err := service.NewGameService(
+		stores.character,
+		stores.joinToken,
+		stores.gameServer,
+		cache.DefaultJoinTokenTTL,
+	)
 	if err != nil {
 		return apiDeps{}, fmt.Errorf("create game service: %w", err)
 	}
 
 	return apiDeps{
-		sessionStore:     sessionStore,
-		authLimiter:      authLimiter,
+		sessionStore:     stores.session,
+		authLimiter:      stores.authLimiter,
 		authService:      authService,
 		characterService: characterService,
 		gameService:      gameService,
@@ -77,6 +119,7 @@ func newAPIDeps(rt *Runtime) (apiDeps, error) {
 	}, nil
 }
 
+// newAPIServerOptions builds the API server options struct from runtime and dependencies.
 func newAPIServerOptions(rt *Runtime, deps apiDeps) api.Options {
 	return api.Options{
 		Addr:            rt.Config.APIHTTPAddr,
@@ -107,6 +150,7 @@ func newAPIServerOptions(rt *Runtime, deps apiDeps) api.Options {
 	}
 }
 
+// newAPIReadyCheck returns a readiness check that verifies PostgreSQL and Redis connectivity.
 func newAPIReadyCheck(rt *Runtime) api.ReadyCheck {
 	return func(ctx context.Context) error {
 		if err := db.Health(ctx, rt.Postgres); err != nil {
