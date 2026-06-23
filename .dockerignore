@@ -1,7 +1,15 @@
 .git
 .env
+.env.local
+.env.production
 bin
+dist
 vendor
 tmp
 *.log
 .DS_Store
+.idea
+.vscode
+.air
+*.coverprofile
+*.pprof
