@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/api"
 )
 
 const (
@@ -19,11 +21,11 @@ func HTTPMiddleware(metrics *Metrics, next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
-		rec := &statusRecorder{ResponseWriter: w}
+		rec := &api.ResponseRecorder{ResponseWriter: w}
 
 		next.ServeHTTP(rec, r)
 
-		status := rec.statusCode
+		status := rec.StatusCode
 		if status == 0 {
 			status = http.StatusOK
 		}
@@ -37,26 +39,4 @@ func HTTPMiddleware(metrics *Metrics, next http.Handler) http.Handler {
 		metrics.Inc(httpRequestsMetric, labels)
 		metrics.ObserveDuration(httpRequestLatencyMetric, time.Since(started), labels)
 	})
-}
-
-type statusRecorder struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func (r *statusRecorder) WriteHeader(statusCode int) {
-	if r.statusCode != 0 {
-		return
-	}
-
-	r.statusCode = statusCode
-	r.ResponseWriter.WriteHeader(statusCode)
-}
-
-func (r *statusRecorder) Write(data []byte) (int, error) {
-	if r.statusCode == 0 {
-		r.statusCode = http.StatusOK
-	}
-
-	return r.ResponseWriter.Write(data)
 }

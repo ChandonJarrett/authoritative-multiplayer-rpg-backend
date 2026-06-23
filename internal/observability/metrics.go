@@ -61,7 +61,7 @@ func (m *Metrics) ObserveDuration(name string, duration time.Duration, labels ma
 		return
 	}
 
-	millis := uint64(duration.Milliseconds())
+	millis := uint64(duration.Milliseconds()) // #nosec G115 -- duration from time.Since, always non-negative
 	key := metricKey(name, withServiceLabel(m.service, labels))
 
 	m.mu.Lock()
