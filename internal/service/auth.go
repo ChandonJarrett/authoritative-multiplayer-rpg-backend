@@ -14,6 +14,10 @@ import (
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/validate"
 )
 
+// fakePasswordHash is a dummy Argon2id hash used during login to perform a
+// constant-time comparison when the user is not found, preventing user
+// enumeration via timing side channels.
+// #nosec G101 -- dummy hash for timing attack mitigation, not a real credential
 const fakePasswordHash = "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 // AuthService owns registration, login, and session revocation.
