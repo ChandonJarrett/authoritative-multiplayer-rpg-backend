@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -34,16 +35,24 @@ return 0
 // Acquire uses SET NX with TTL.
 // Renew and Release are owner-checked with Lua so one server cannot release another server's lock.
 type CharacterLockStore struct {
-	client cache.Client
-	keys   cache.KeyBuilder
+	client  cache.Client
+	keys    cache.KeyBuilder
+	lockTTL time.Duration
 }
 
 // NewCharacterLockStore creates a Redis-backed character lock store.
-func NewCharacterLockStore(client cache.Client, keys cache.KeyBuilder) *CharacterLockStore {
-	return &CharacterLockStore{
-		client: client,
-		keys:   keys,
+func NewCharacterLockStore(client cache.Client, keys cache.KeyBuilder, lockTTL time.Duration) (*CharacterLockStore, error) {
+	if client == nil {
+		return nil, fmt.Errorf("redis client is required: %w", domain.ErrInvalidArgument)
 	}
+	if lockTTL <= 0 {
+		return nil, fmt.Errorf("lock TTL must be > 0: %w", domain.ErrInvalidArgument)
+	}
+	return &CharacterLockStore{
+		client:  client,
+		keys:    keys,
+		lockTTL: lockTTL,
+	}, nil
 }
 
 // AcquireCharacterLock attempts to acquire a character lock for ownerID.
@@ -68,9 +77,7 @@ func (s *CharacterLockStore) AcquireCharacterLock(
 		return false, err
 	}
 
-	if ttl <= 0 {
-		ttl = cache.DefaultCharacterLockTTL
-	}
+	ttl = s.effectiveTTL(ttl)
 
 	key, err := s.keys.CharacterLock(characterID)
 	if err != nil {
@@ -106,9 +113,7 @@ func (s *CharacterLockStore) RenewCharacterLock(
 		return false, err
 	}
 
-	if ttl <= 0 {
-		ttl = cache.DefaultCharacterLockTTL
-	}
+	ttl = s.effectiveTTL(ttl)
 
 	key, err := s.keys.CharacterLock(characterID)
 	if err != nil {
@@ -126,7 +131,7 @@ func (s *CharacterLockStore) RenewCharacterLock(
 		return false, redisUnavailable("renew character lock", err)
 	}
 
-	return redisTruthy(result), nil
+	return truthy(result), nil
 }
 
 // ReleaseCharacterLock releases a lock only if ownerID still owns it.
@@ -164,7 +169,7 @@ func (s *CharacterLockStore) ReleaseCharacterLock(
 		return false, redisUnavailable("release character lock", err)
 	}
 
-	return redisTruthy(result), nil
+	return truthy(result), nil
 }
 
 // GetCharacterLockOwner returns the current lock owner.
@@ -199,15 +204,10 @@ func (s *CharacterLockStore) GetCharacterLockOwner(ctx context.Context, characte
 	return ownerID, nil
 }
 
-func redisTruthy(value interface{}) bool {
-	switch v := value.(type) {
-	case int64:
-		return v > 0
-	case int:
-		return v > 0
-	case string:
-		return v != "" && v != "0"
-	default:
-		return false
+// effectiveTTL returns the requested TTL, falling back to the configured store default.
+func (s *CharacterLockStore) effectiveTTL(requested time.Duration) time.Duration {
+	if requested <= 0 {
+		return s.lockTTL
 	}
+	return requested
 }

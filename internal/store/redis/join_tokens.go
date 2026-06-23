@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/cache"
@@ -35,47 +36,32 @@ func NewJoinTokenStore(client cache.Client, keys cache.KeyBuilder) *JoinTokenSto
 }
 
 // CreateJoinToken stores a short-lived join token.
+// Callers must ensure all Token, UserID, CharacterID, ServerID, and ServerAddr
+// fields are already validated and non-empty.
 func (s *JoinTokenStore) CreateJoinToken(ctx context.Context, token domain.JoinToken) error {
 	if s == nil || s.client == nil {
 		return domain.ErrUnavailable
 	}
 
-	tokenID, err := validate.RequiredID("join token", token.Token)
-	if err != nil {
-		return err
-	}
-
-	userID, err := validate.RequiredID("user ID", token.UserID)
-	if err != nil {
-		return err
-	}
-
-	characterID, err := validate.RequiredID("character ID", token.CharacterID)
-	if err != nil {
-		return err
-	}
-
-	serverID, err := validate.RequiredID("server ID", token.ServerID)
-	if err != nil {
-		return err
-	}
-
-	serverAddr, err := validate.RequiredID("server address", token.ServerAddr)
-	if err != nil {
-		return err
-	}
-
-	key, err := s.keys.JoinToken(tokenID)
+	key, err := s.keys.JoinToken(token.Token)
 	if err != nil {
 		return redisKeyError("build join-token key", err)
 	}
 
+	ttl := time.Until(token.ExpiresAt)
+	if token.ExpiresAt.IsZero() {
+		return fmt.Errorf("join token expiry is required: %w", domain.ErrInvalidArgument)
+	}
+	if ttl <= 0 {
+		return fmt.Errorf("join token already expired: %w", domain.ErrInvalidArgument)
+	}
+
 	payload := joinTokenPayload{
-		UserID:      userID,
-		CharacterID: characterID,
-		ServerID:    serverID,
-		ServerAddr:  serverAddr,
-		ExpiresAt:   time.Now().UTC().Add(cache.DefaultJoinTokenTTL),
+		UserID:      token.UserID,
+		CharacterID: token.CharacterID,
+		ServerID:    token.ServerID,
+		ServerAddr:  token.ServerAddr,
+		ExpiresAt:   token.ExpiresAt.UTC(),
 	}
 
 	data, err := json.Marshal(payload)
@@ -83,7 +69,7 @@ func (s *JoinTokenStore) CreateJoinToken(ctx context.Context, token domain.JoinT
 		return redisInternal("marshal join token", err)
 	}
 
-	if err := s.client.Set(ctx, key, data, cache.DefaultJoinTokenTTL).Err(); err != nil {
+	if err := s.client.Set(ctx, key, data, ttl).Err(); err != nil {
 		return redisUnavailable("create join token", err)
 	}
 

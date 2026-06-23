@@ -4,6 +4,7 @@ package redis
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/cache"
@@ -51,28 +52,25 @@ type SessionStore struct {
 }
 
 // NewSessionStore creates a Redis session store.
-func NewSessionStore(client cache.Client, keys cache.KeyBuilder) *SessionStore {
+func NewSessionStore(client cache.Client, keys cache.KeyBuilder, ttl time.Duration) (*SessionStore, error) {
+	if client == nil {
+		return nil, fmt.Errorf("redis client is required: %w", domain.ErrInvalidArgument)
+	}
+	if ttl <= 0 {
+		return nil, fmt.Errorf("session TTL must be > 0: %w", domain.ErrInvalidArgument)
+	}
 	return &SessionStore{
 		client: client,
 		keys:   keys,
-		ttl:    cache.DefaultSessionTTL,
-	}
+		ttl:    ttl,
+	}, nil
 }
 
 // CreateSession creates a session and indexes it by user in one Redis script.
+// Callers must ensure sessionID and userID are already validated and non-empty.
 func (s *SessionStore) CreateSession(ctx context.Context, sessionID, userID string) error {
 	if s == nil || s.client == nil {
 		return domain.ErrUnavailable
-	}
-
-	sessionID, err := validate.RequiredID("session ID", sessionID)
-	if err != nil {
-		return err
-	}
-
-	userID, err = validate.RequiredID("user ID", userID)
-	if err != nil {
-		return err
 	}
 
 	sessionKey, err := s.keys.Session(sessionID)
@@ -85,17 +83,12 @@ func (s *SessionStore) CreateSession(ctx context.Context, sessionID, userID stri
 		return redisKeyError("build user sessions key", err)
 	}
 
-	ttl := s.ttl
-	if ttl <= 0 {
-		ttl = cache.DefaultSessionTTL
-	}
-
 	if err := s.client.Eval(
 		ctx,
 		createSessionScript,
 		[]string{sessionKey, userSessionsKey},
 		userID,
-		ttl.Milliseconds(),
+		s.ttl.Milliseconds(),
 		sessionID,
 	).Err(); err != nil {
 		return redisUnavailable("create session", err)
@@ -193,11 +186,10 @@ func (s *SessionStore) DeleteUserSessions(ctx context.Context, userID string) er
 		return redisKeyError("build user sessions key", err)
 	}
 
-	if s.keys.Prefix() == "" {
-		return redisKeyError("build session prefix", cache.ErrEmptyPrefix)
+	sessionPrefix, err := s.keys.SessionPrefix()
+	if err != nil {
+		return redisKeyError("build session prefix", err)
 	}
-
-	sessionPrefix := s.keys.Prefix() + ":session:"
 
 	if err := s.client.Eval(
 		ctx,

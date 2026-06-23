@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sort"
 	"time"
 
@@ -21,35 +22,34 @@ type gameServerPayload struct {
 
 // GameServerStore stores ephemeral game server registry records in Redis.
 type GameServerStore struct {
-	client cache.Client
-	keys   cache.KeyBuilder
+	client    cache.Client
+	keys      cache.KeyBuilder
+	serverTTL time.Duration
 }
 
 // NewGameServerStore creates a Redis game-server store.
-func NewGameServerStore(client cache.Client, keys cache.KeyBuilder) *GameServerStore {
-	return &GameServerStore{
-		client: client,
-		keys:   keys,
+func NewGameServerStore(client cache.Client, keys cache.KeyBuilder, serverTTL time.Duration) (*GameServerStore, error) {
+	if client == nil {
+		return nil, fmt.Errorf("redis client is required: %w", domain.ErrInvalidArgument)
 	}
+	if serverTTL <= 0 {
+		return nil, fmt.Errorf("server TTL must be > 0: %w", domain.ErrInvalidArgument)
+	}
+	return &GameServerStore{
+		client:    client,
+		keys:      keys,
+		serverTTL: serverTTL,
+	}, nil
 }
 
 // RegisterGameServer registers or refreshes a game server heartbeat.
+// Callers must ensure server.ID and server.Addr are already validated and non-empty.
 func (s *GameServerStore) RegisterGameServer(ctx context.Context, server domain.GameServer) error {
 	if s == nil || s.client == nil {
 		return domain.ErrUnavailable
 	}
 
-	serverID, err := validate.RequiredID("server ID", server.ID)
-	if err != nil {
-		return err
-	}
-
-	addr, err := validate.RequiredID("server address", server.Addr)
-	if err != nil {
-		return err
-	}
-
-	serverKey, err := s.keys.Server(serverID)
+	serverKey, err := s.keys.Server(server.ID)
 	if err != nil {
 		return redisKeyError("build server key", err)
 	}
@@ -59,10 +59,18 @@ func (s *GameServerStore) RegisterGameServer(ctx context.Context, server domain.
 		return redisKeyError("build servers index key", err)
 	}
 
+	ttl := time.Until(server.ExpiresAt)
+	if server.ExpiresAt.IsZero() {
+		return fmt.Errorf("game server expiry is required: %w", domain.ErrInvalidArgument)
+	}
+	if ttl <= 0 {
+		return fmt.Errorf("game server already expired: %w", domain.ErrInvalidArgument)
+	}
+
 	payload := gameServerPayload{
-		ID:        serverID,
-		Addr:      addr,
-		ExpiresAt: time.Now().UTC().Add(cache.DefaultServerTTL),
+		ID:        server.ID,
+		Addr:      server.Addr,
+		ExpiresAt: server.ExpiresAt.UTC(),
 	}
 
 	data, err := json.Marshal(payload)
@@ -70,15 +78,16 @@ func (s *GameServerStore) RegisterGameServer(ctx context.Context, server domain.
 		return redisInternal("marshal game server", err)
 	}
 
-	if err := s.client.Set(ctx, serverKey, data, cache.DefaultServerTTL).Err(); err != nil {
+	if err := s.client.Set(ctx, serverKey, data, ttl).Err(); err != nil {
 		return redisUnavailable("register game server", err)
 	}
 
-	if err := s.client.SAdd(ctx, indexKey, serverID).Err(); err != nil {
+	if err := s.client.SAdd(ctx, indexKey, server.ID).Err(); err != nil {
 		return redisUnavailable("index game server", err)
 	}
 
-	if err := s.client.Expire(ctx, indexKey, cache.DefaultServerTTL).Err(); err != nil {
+	// Index TTL tracks the configured server TTL so it stays alive as long as any server could.
+	if err := s.client.Expire(ctx, indexKey, s.serverTTL).Err(); err != nil {
 		return redisUnavailable("expire game server index", err)
 	}
 

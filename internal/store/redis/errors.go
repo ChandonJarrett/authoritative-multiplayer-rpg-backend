@@ -34,3 +34,19 @@ func redisKeyError(operation string, err error) error {
 	}
 	return redisUnavailable(operation, err)
 }
+
+// truthy interprets a Redis Lua script result as a boolean.
+// Redis Lua returns integer 0 for nil/false and integer 1 for true,
+// or a string that some commands may produce.
+func truthy(value interface{}) bool {
+	switch v := value.(type) {
+	case int64:
+		return v > 0
+	case int:
+		return v > 0
+	case string:
+		return v != "" && v != "0"
+	default:
+		return false
+	}
+}

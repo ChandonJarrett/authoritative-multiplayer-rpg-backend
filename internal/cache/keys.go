@@ -71,14 +71,42 @@ func (k KeyBuilder) Session(sessionID string) (string, error) {
 	return k.build("session", sessionID)
 }
 
+// SessionPrefix returns the key prefix shared by all session keys, including the trailing separator.
+// It is used for bulk operations that need to iterate over session keys.
+func (k KeyBuilder) SessionPrefix() (string, error) {
+	base, err := k.build("session")
+	if err != nil {
+		return "", err
+	}
+	return base + keySeparator, nil
+}
+
 // UserSessions returns the Redis key for the session set owned by a user.
 func (k KeyBuilder) UserSessions(userID string) (string, error) {
 	return k.build("user_sessions", userID)
 }
 
+// JoinTokenPrefix returns the key prefix shared by all join-token keys, including the trailing separator.
+func (k KeyBuilder) JoinTokenPrefix() (string, error) {
+	base, err := k.build("join_token")
+	if err != nil {
+		return "", err
+	}
+	return base + keySeparator, nil
+}
+
 // Server returns the Redis key for a game server registry entry.
 func (k KeyBuilder) Server(serverID string) (string, error) {
 	return k.build("server", serverID)
+}
+
+// ServerPrefix returns the key prefix shared by all game server keys, including the trailing separator.
+func (k KeyBuilder) ServerPrefix() (string, error) {
+	base, err := k.build("server")
+	if err != nil {
+		return "", err
+	}
+	return base + keySeparator, nil
 }
 
 // ServerSessions returns the Redis key for sessions active on a specific game server.

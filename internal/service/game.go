@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/auth"
-	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/cache"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/domain"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/store"
 	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/validate"
@@ -14,10 +13,11 @@ import (
 
 // GameService provides game-related API handoff operations.
 type GameService struct {
-	characters store.CharacterStore
-	joinTokens store.JoinTokenStore
-	servers    store.GameServerStore
-	now        func() time.Time
+	characters   store.CharacterStore
+	joinTokens   store.JoinTokenStore
+	servers      store.GameServerStore
+	joinTokenTTL time.Duration
+	now          func() time.Time
 }
 
 // IssueJoinTokenResult represents the result of issuing a join token.
@@ -33,6 +33,7 @@ func NewGameService(
 	characters store.CharacterStore,
 	joinTokens store.JoinTokenStore,
 	servers store.GameServerStore,
+	joinTokenTTL time.Duration,
 ) (*GameService, error) {
 	if characters == nil {
 		return nil, fmt.Errorf("character store is required: %w", domain.ErrInvalidArgument)
@@ -43,11 +44,15 @@ func NewGameService(
 	if servers == nil {
 		return nil, fmt.Errorf("game server store is required: %w", domain.ErrInvalidArgument)
 	}
+	if joinTokenTTL <= 0 {
+		return nil, fmt.Errorf("join token TTL must be > 0: %w", domain.ErrInvalidArgument)
+	}
 	return &GameService{
-		characters: characters,
-		joinTokens: joinTokens,
-		servers:    servers,
-		now:        time.Now,
+		characters:   characters,
+		joinTokens:   joinTokens,
+		servers:      servers,
+		joinTokenTTL: joinTokenTTL,
+		now:          time.Now,
 	}, nil
 }
 
@@ -114,7 +119,7 @@ func (s *GameService) IssueJoinToken(
 		CharacterID: characterID,
 		ServerID:    server.ID,
 		ServerAddr:  server.Addr,
-		ExpiresAt:   now().UTC().Add(cache.DefaultJoinTokenTTL),
+		ExpiresAt:   now().UTC().Add(s.joinTokenTTL),
 	}
 	if err := s.joinTokens.CreateJoinToken(ctx, joinToken); err != nil {
 		return IssueJoinTokenResult{}, err
@@ -124,7 +129,7 @@ func (s *GameService) IssueJoinToken(
 		JoinToken:        token,
 		GameServerID:     server.ID,
 		GameServerAddr:   server.Addr,
-		ExpiresInSeconds: int64(cache.DefaultJoinTokenTTL.Seconds()),
+		ExpiresInSeconds: int64(s.joinTokenTTL.Seconds()),
 	}, nil
 }
 
