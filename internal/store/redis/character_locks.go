@@ -55,6 +55,20 @@ func NewCharacterLockStore(client cache.Client, keys cache.KeyBuilder, lockTTL t
 	}, nil
 }
 
+// validateLockIDs validates and normalizes character and lock owner IDs.
+func (s *CharacterLockStore) validateLockIDs(characterID, ownerID string) (string, string, error) {
+	var err error
+	characterID, err = validate.RequiredID("character ID", characterID)
+	if err != nil {
+		return "", "", err
+	}
+	ownerID, err = validate.RequiredID("lock owner ID", ownerID)
+	if err != nil {
+		return "", "", err
+	}
+	return characterID, ownerID, nil
+}
+
 // AcquireCharacterLock attempts to acquire a character lock for ownerID.
 // It returns false when the character is already locked by another owner.
 func (s *CharacterLockStore) AcquireCharacterLock(
@@ -67,12 +81,8 @@ func (s *CharacterLockStore) AcquireCharacterLock(
 		return false, domain.ErrUnavailable
 	}
 
-	characterID, err := validate.RequiredID("character ID", characterID)
-	if err != nil {
-		return false, err
-	}
-
-	ownerID, err = validate.RequiredID("lock owner ID", ownerID)
+	var err error
+	characterID, ownerID, err = s.validateLockIDs(characterID, ownerID)
 	if err != nil {
 		return false, err
 	}
@@ -103,12 +113,8 @@ func (s *CharacterLockStore) RenewCharacterLock(
 		return false, domain.ErrUnavailable
 	}
 
-	characterID, err := validate.RequiredID("character ID", characterID)
-	if err != nil {
-		return false, err
-	}
-
-	ownerID, err = validate.RequiredID("lock owner ID", ownerID)
+	var err error
+	characterID, ownerID, err = s.validateLockIDs(characterID, ownerID)
 	if err != nil {
 		return false, err
 	}
@@ -144,12 +150,8 @@ func (s *CharacterLockStore) ReleaseCharacterLock(
 		return false, domain.ErrUnavailable
 	}
 
-	characterID, err := validate.RequiredID("character ID", characterID)
-	if err != nil {
-		return false, err
-	}
-
-	ownerID, err = validate.RequiredID("lock owner ID", ownerID)
+	var err error
+	characterID, ownerID, err = s.validateLockIDs(characterID, ownerID)
 	if err != nil {
 		return false, err
 	}
