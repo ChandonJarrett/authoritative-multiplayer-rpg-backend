@@ -58,8 +58,10 @@ make run-game         # run the game server
 make proto            # regenerate protobuf code
 
 # Quality
+make fmt              # format all source files (gofumpt + goimports)
+make lint             # run 16 golangci-lint linters
 make ci-fast          # lint, fmt, vet, unit tests; run before committing
-make ci               # full CI suite
+make ci               # full CI suite (includes vuln check + race detector)
 
 # Tests
 make test             # unit + integration tests

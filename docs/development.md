@@ -26,6 +26,26 @@ Once setup completes, run `make test` to verify everything works.
 
 ---
 
+## Linting and formatting
+
+The project uses `golangci-lint` v2 with 16 enabled linters covering correctness, security, error handling, and style:
+
+```bash
+make lint          # run golangci-lint
+make fmt           # format all Go source files with gofumpt + goimports
+make fmt-check     # verify formatting without modifying files
+make ci-fast       # run lint, fmt-check, vet, and unit tests
+```
+
+Configuration lives in `.golangci.yaml`. Key details:
+
+- **Generated files**: `.pb.go` and `.connect.go` files in `internal/protocol/` are excluded from all linters via `generated: lax` auto-detection and explicit path rules. Do not hand-edit these files.
+- **Formatting**: `gofumpt` and `goimports` are configured as formatters (not linters). Generated files are excluded from formatting via the `GO_EXCLUDE` Makefile variable.
+- **Security**: `gosec` is enabled with inline `#nosec` comments for provably safe conversions (e.g., base64 decode lengths, positive durations).
+- **Pre-commit**: `.githooks/pre-commit` runs `make ci-fast` automatically. Run `make hooks` to install.
+
+---
+
 ## Daily workflow
 
 ```bash
