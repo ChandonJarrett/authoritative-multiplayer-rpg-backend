@@ -59,7 +59,7 @@ func (h *AuthHandler) Logout(
 	ctx context.Context,
 	_ *connect.Request[rpgv1.LogoutRequest],
 ) (*connect.Response[rpgv1.LogoutResponse], error) {
-	authUser, err := api.RequireAuthSession(ctx)
+	authUser, err := api.RequireAuthUser(ctx)
 	if err != nil {
 		return nil, api.ToConnectError(err)
 	}

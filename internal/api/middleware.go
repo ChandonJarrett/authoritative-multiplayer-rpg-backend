@@ -35,21 +35,15 @@ func StandardMiddleware(
 ) []Middleware {
 	stack := []Middleware{
 		WithRequestID,
-		func(next http.Handler) http.Handler {
-			return WithPanicRecovery(log, next)
-		},
-		func(next http.Handler) http.Handler {
-			return WithRequestLogging(log, next)
-		},
+		RecoveryMiddleware(log),
+		LoggingMiddleware(log),
 	}
 
 	if custom != nil {
 		stack = append(stack, custom)
 	}
 
-	stack = append(stack, func(next http.Handler) http.Handler {
-		return WithCORS(next, allowedOrigins)
-	})
+	stack = append(stack, CORSMiddleware(allowedOrigins))
 
 	return stack
 }

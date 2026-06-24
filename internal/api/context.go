@@ -37,18 +37,6 @@ func RequireAuthUser(ctx context.Context) (AuthUser, error) {
 	return user, nil
 }
 
-// RequireAuthSession returns both user and session token.
-func RequireAuthSession(ctx context.Context) (AuthUser, error) {
-	user, err := RequireAuthUser(ctx)
-	if err != nil {
-		return AuthUser{}, err
-	}
-	if user.SessionToken == "" {
-		return AuthUser{}, domain.ErrUnauthenticated
-	}
-	return user, nil
-}
-
 // ContextWithRequestID returns a context containing the request ID.
 func ContextWithRequestID(ctx context.Context, requestID string) context.Context {
 	return context.WithValue(ctx, requestIDContextKey{}, requestID)

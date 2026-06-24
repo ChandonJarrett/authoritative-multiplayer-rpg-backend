@@ -40,33 +40,35 @@ func NewRPCLoggingInterceptor(log *slog.Logger) connect.UnaryInterceptorFunc {
 	}
 }
 
-// WithRequestLogging logs every completed HTTP request.
-func WithRequestLogging(log *slog.Logger, next http.Handler) http.Handler {
-	if log == nil {
-		log = slog.Default()
-	}
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		started := time.Now()
-		rec := &ResponseRecorder{ResponseWriter: w}
-
-		next.ServeHTTP(rec, r)
-
-		statusCode := rec.StatusCode
-		if statusCode == 0 {
-			statusCode = http.StatusOK
+// LoggingMiddleware returns middleware that logs every completed HTTP request.
+func LoggingMiddleware(log *slog.Logger) Middleware {
+	return func(next http.Handler) http.Handler {
+		if log == nil {
+			log = slog.Default()
 		}
 
-		log.InfoContext(
-			r.Context(),
-			"http request",
-			"method", r.Method,
-			"path", r.URL.Path,
-			"status", statusCode,
-			"bytes", rec.Bytes,
-			"duration_ms", time.Since(started).Milliseconds(),
-			"request_id", RequestIDFromContext(r.Context()),
-			"remote_addr", r.RemoteAddr,
-		)
-	})
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			started := time.Now()
+			rec := &ResponseRecorder{ResponseWriter: w}
+
+			next.ServeHTTP(rec, r)
+
+			statusCode := rec.StatusCode
+			if statusCode == 0 {
+				statusCode = http.StatusOK
+			}
+
+			log.InfoContext(
+				r.Context(),
+				"http request",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"status", statusCode,
+				"bytes", rec.Bytes,
+				"duration_ms", time.Since(started).Milliseconds(),
+				"request_id", RequestIDFromContext(r.Context()),
+				"remote_addr", r.RemoteAddr,
+			)
+		})
+	}
 }
