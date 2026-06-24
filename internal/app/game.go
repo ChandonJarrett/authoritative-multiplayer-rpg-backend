@@ -1,6 +1,10 @@
 package app
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/game"
+)
 
 const gameServiceName = "game"
 
@@ -12,15 +16,35 @@ func RunGame() error {
 	}
 	defer rt.Close()
 
+	gs, err := NewGameServer(rt)
+	if err != nil {
+		return fmt.Errorf("create game server: %w", err)
+	}
+
 	rt.Log.Info(
-		"game server ready",
+		"game server starting",
 		"enet_addr", rt.Config.GameENetAddr,
 		"http_addr", rt.Config.GameHTTPAddr,
 	)
 
-	// TODO: initialize ENet host, simulation loop, snapshot broadcast loop, and health server.
-	<-rt.Context.Done()
+	if err := gs.Run(rt.Context); err != nil {
+		return err
+	}
 
 	rt.Log.Info("game server stopped")
 	return nil
+}
+
+// NewGameServer wires game server dependencies and returns a runnable game server.
+func NewGameServer(rt *Runtime) (*game.GameServer, error) {
+	if rt == nil {
+		return nil, fmt.Errorf("runtime is nil")
+	}
+
+	cfg, err := newGameConfig(rt)
+	if err != nil {
+		return nil, err
+	}
+
+	return game.NewGameServer(rt.Log, cfg)
 }
