@@ -15,7 +15,7 @@ import (
 const DefaultMapID = "starter_zone"
 
 // DefaultSpawn is the default spawn position for new characters.
-var DefaultSpawn = domain.Vec3{X: 0, Y: 0, Z: 0}
+var DefaultSpawn = domain.Vec2{X: 0, Y: 0}
 
 // CharacterService provides character operations.
 type CharacterService struct {

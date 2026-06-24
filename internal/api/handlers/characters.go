@@ -74,10 +74,9 @@ func characterToProto(character domain.Character) *rpgv1.CharacterSummary {
 		CharacterId: character.ID,
 		Name:        character.Name,
 		MapId:       character.MapID,
-		Position: &rpgv1.Vec3{
+		Position: &rpgv1.Vec2{
 			X: character.Position.X,
 			Y: character.Position.Y,
-			Z: character.Position.Z,
 		},
 	}
 }

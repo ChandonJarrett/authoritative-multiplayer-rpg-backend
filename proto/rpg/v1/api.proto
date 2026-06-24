@@ -80,7 +80,7 @@ message CharacterSummary {
   string character_id = 1;
   string name = 2;
   string map_id = 3;
-  Vec3 position = 4;
+  Vec2 position = 4;
 }
 
 // --- Game handoff ---

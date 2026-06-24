@@ -570,7 +570,7 @@ type CharacterSummary struct {
 	CharacterId   string                 `protobuf:"bytes,1,opt,name=character_id,json=characterId,proto3" json:"character_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	MapId         string                 `protobuf:"bytes,3,opt,name=map_id,json=mapId,proto3" json:"map_id,omitempty"`
-	Position      *Vec3                  `protobuf:"bytes,4,opt,name=position,proto3" json:"position,omitempty"`
+	Position      *Vec2                  `protobuf:"bytes,4,opt,name=position,proto3" json:"position,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -626,7 +626,7 @@ func (x *CharacterSummary) GetMapId() string {
 	return ""
 }
 
-func (x *CharacterSummary) GetPosition() *Vec3 {
+func (x *CharacterSummary) GetPosition() *Vec2 {
 	if x != nil {
 		return x.Position
 	}
@@ -931,7 +931,7 @@ const file_rpg_v1_api_proto_rawDesc = "" +
 	"\fcharacter_id\x18\x01 \x01(\tR\vcharacterId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x15\n" +
 	"\x06map_id\x18\x03 \x01(\tR\x05mapId\x12(\n" +
-	"\bposition\x18\x04 \x01(\v2\f.rpg.v1.Vec3R\bposition\"\x18\n" +
+	"\bposition\x18\x04 \x01(\v2\f.rpg.v1.Vec2R\bposition\"\x18\n" +
 	"\x16ListGameServersRequest\"N\n" +
 	"\x17ListGameServersResponse\x123\n" +
 	"\aservers\x18\x01 \x03(\v2\x19.rpg.v1.GameServerSummaryR\aservers\"\x91\x01\n" +
@@ -993,11 +993,11 @@ var file_rpg_v1_api_proto_goTypes = []any{
 	(*GameServerSummary)(nil),       // 15: rpg.v1.GameServerSummary
 	(*IssueJoinTokenRequest)(nil),   // 16: rpg.v1.IssueJoinTokenRequest
 	(*IssueJoinTokenResponse)(nil),  // 17: rpg.v1.IssueJoinTokenResponse
-	(*Vec3)(nil),                    // 18: rpg.v1.Vec3
+	(*Vec2)(nil),                    // 18: rpg.v1.Vec2
 }
 var file_rpg_v1_api_proto_depIdxs = []int32{
 	12, // 0: rpg.v1.ListCharactersResponse.characters:type_name -> rpg.v1.CharacterSummary
-	18, // 1: rpg.v1.CharacterSummary.position:type_name -> rpg.v1.Vec3
+	18, // 1: rpg.v1.CharacterSummary.position:type_name -> rpg.v1.Vec2
 	15, // 2: rpg.v1.ListGameServersResponse.servers:type_name -> rpg.v1.GameServerSummary
 	0,  // 3: rpg.v1.SystemService.Ping:input_type -> rpg.v1.PingRequest
 	2,  // 4: rpg.v1.AuthService.Register:input_type -> rpg.v1.RegisterRequest

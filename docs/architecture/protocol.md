@@ -19,7 +19,7 @@ buf.gen.yaml           <- code generation config, plugins and output paths
 
 | File | Purpose |
 |---|---|
-| `common.proto` | Shared value types used by both API and game, `Vec3`, identifiers |
+| `common.proto` | Shared value types used by both API and game, `Vec2`, identifiers |
 | `api.proto` | ConnectRPC service definitions: system, auth, characters, game handoff |
 | `game.proto` | ENet packet messages: join handshake, movement input, world snapshots |
 

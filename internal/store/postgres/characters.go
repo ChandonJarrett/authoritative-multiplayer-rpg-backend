@@ -32,7 +32,6 @@ func (s *CharacterStore) CreateCharacter(ctx context.Context, character domain.C
             map_id,
             position_x,
             position_y,
-            position_z
         )
         VALUES (
             $1,
@@ -53,7 +52,6 @@ func (s *CharacterStore) CreateCharacter(ctx context.Context, character domain.C
 		character.MapID,
 		character.Position.X,
 		character.Position.Y,
-		character.Position.Z,
 	)
 	if err != nil {
 		return mapPostgresError(err)
@@ -76,7 +74,6 @@ func (s *CharacterStore) ListCharactersByUserID(ctx context.Context, userID stri
             map_id,
             position_x,
             position_y,
-            position_z,
             created_at,
             updated_at
         FROM characters
@@ -119,7 +116,6 @@ func (s *CharacterStore) GetCharacterByID(ctx context.Context, characterID strin
             map_id,
             position_x,
             position_y,
-            position_z,
             created_at,
             updated_at
         FROM characters
@@ -144,7 +140,6 @@ func scanCharacter(row scanner) (domain.Character, error) {
 		&character.MapID,
 		&character.Position.X,
 		&character.Position.Y,
-		&character.Position.Z,
 		&character.CreatedAt,
 		&character.UpdatedAt,
 	); err != nil {

@@ -8,7 +8,6 @@ CREATE TABLE characters (
   map_id TEXT NOT NULL,
   position_x DOUBLE PRECISION NOT NULL,
   position_y DOUBLE PRECISION NOT NULL,
-  position_z DOUBLE PRECISION NOT NULL,
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

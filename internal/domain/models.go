@@ -18,16 +18,15 @@ type Character struct {
 	UserID    string
 	Name      string
 	MapID     string
-	Position  Vec3
+	Position  Vec2
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
-// Vec3 represents a 3D vector for position or movement in the game world.
-type Vec3 struct {
+// Vec2 represents a 2D vector for position or movement in the game world.
+type Vec2 struct {
 	X float64
 	Y float64
-	Z float64
 }
 
 // Session represents a user's active session in the system.

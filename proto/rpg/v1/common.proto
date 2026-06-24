@@ -4,9 +4,8 @@ package rpg.v1;
 
 option go_package = "github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1;rpgv1";
 
-// Vec3 represents a point or vector in 3D space.
-message Vec3 {
+// Vec2 represents a point or vector in 2D space.
+message Vec2 {
   double x = 1;
   double y = 2;
-  double z = 3;
 }

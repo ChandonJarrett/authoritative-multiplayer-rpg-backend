@@ -21,30 +21,29 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Vec3 represents a point or vector in 3D space.
-type Vec3 struct {
+// Vec2 represents a point or vector in 2D space.
+type Vec2 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	X             float64                `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
 	Y             float64                `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
-	Z             float64                `protobuf:"fixed64,3,opt,name=z,proto3" json:"z,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Vec3) Reset() {
-	*x = Vec3{}
+func (x *Vec2) Reset() {
+	*x = Vec2{}
 	mi := &file_rpg_v1_common_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Vec3) String() string {
+func (x *Vec2) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Vec3) ProtoMessage() {}
+func (*Vec2) ProtoMessage() {}
 
-func (x *Vec3) ProtoReflect() protoreflect.Message {
+func (x *Vec2) ProtoReflect() protoreflect.Message {
 	mi := &file_rpg_v1_common_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -56,28 +55,21 @@ func (x *Vec3) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Vec3.ProtoReflect.Descriptor instead.
-func (*Vec3) Descriptor() ([]byte, []int) {
+// Deprecated: Use Vec2.ProtoReflect.Descriptor instead.
+func (*Vec2) Descriptor() ([]byte, []int) {
 	return file_rpg_v1_common_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Vec3) GetX() float64 {
+func (x *Vec2) GetX() float64 {
 	if x != nil {
 		return x.X
 	}
 	return 0
 }
 
-func (x *Vec3) GetY() float64 {
+func (x *Vec2) GetY() float64 {
 	if x != nil {
 		return x.Y
-	}
-	return 0
-}
-
-func (x *Vec3) GetZ() float64 {
-	if x != nil {
-		return x.Z
 	}
 	return 0
 }
@@ -86,11 +78,10 @@ var File_rpg_v1_common_proto protoreflect.FileDescriptor
 
 const file_rpg_v1_common_proto_rawDesc = "" +
 	"\n" +
-	"\x13rpg/v1/common.proto\x12\x06rpg.v1\"0\n" +
-	"\x04Vec3\x12\f\n" +
+	"\x13rpg/v1/common.proto\x12\x06rpg.v1\"\"\n" +
+	"\x04Vec2\x12\f\n" +
 	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
-	"\x01y\x18\x02 \x01(\x01R\x01y\x12\f\n" +
-	"\x01z\x18\x03 \x01(\x01R\x01zB`Z^github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1;rpgv1b\x06proto3"
+	"\x01y\x18\x02 \x01(\x01R\x01yB`Z^github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1;rpgv1b\x06proto3"
 
 var (
 	file_rpg_v1_common_proto_rawDescOnce sync.Once
@@ -106,7 +97,7 @@ func file_rpg_v1_common_proto_rawDescGZIP() []byte {
 
 var file_rpg_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_rpg_v1_common_proto_goTypes = []any{
-	(*Vec3)(nil), // 0: rpg.v1.Vec3
+	(*Vec2)(nil), // 0: rpg.v1.Vec2
 }
 var file_rpg_v1_common_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

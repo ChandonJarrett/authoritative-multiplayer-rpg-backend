@@ -128,18 +128,211 @@ func (x *JoinResponse) GetReason() string {
 	return ""
 }
 
+// InputPacket is sent by the client every simulation tick.
+type InputPacket struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sequence      uint32                 `protobuf:"varint,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	MoveDirection *Vec2                  `protobuf:"bytes,2,opt,name=move_direction,json=moveDirection,proto3" json:"move_direction,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InputPacket) Reset() {
+	*x = InputPacket{}
+	mi := &file_rpg_v1_game_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InputPacket) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InputPacket) ProtoMessage() {}
+
+func (x *InputPacket) ProtoReflect() protoreflect.Message {
+	mi := &file_rpg_v1_game_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InputPacket.ProtoReflect.Descriptor instead.
+func (*InputPacket) Descriptor() ([]byte, []int) {
+	return file_rpg_v1_game_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *InputPacket) GetSequence() uint32 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *InputPacket) GetMoveDirection() *Vec2 {
+	if x != nil {
+		return x.MoveDirection
+	}
+	return nil
+}
+
+type EntitySnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EntityId      string                 `protobuf:"bytes,1,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	Type          uint32                 `protobuf:"varint,2,opt,name=type,proto3" json:"type,omitempty"`
+	Position      *Vec2                  `protobuf:"bytes,3,opt,name=position,proto3" json:"position,omitempty"`
+	Velocity      *Vec2                  `protobuf:"bytes,4,opt,name=velocity,proto3" json:"velocity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EntitySnapshot) Reset() {
+	*x = EntitySnapshot{}
+	mi := &file_rpg_v1_game_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EntitySnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EntitySnapshot) ProtoMessage() {}
+
+func (x *EntitySnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_rpg_v1_game_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EntitySnapshot.ProtoReflect.Descriptor instead.
+func (*EntitySnapshot) Descriptor() ([]byte, []int) {
+	return file_rpg_v1_game_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *EntitySnapshot) GetEntityId() string {
+	if x != nil {
+		return x.EntityId
+	}
+	return ""
+}
+
+func (x *EntitySnapshot) GetType() uint32 {
+	if x != nil {
+		return x.Type
+	}
+	return 0
+}
+
+func (x *EntitySnapshot) GetPosition() *Vec2 {
+	if x != nil {
+		return x.Position
+	}
+	return nil
+}
+
+func (x *EntitySnapshot) GetVelocity() *Vec2 {
+	if x != nil {
+		return x.Velocity
+	}
+	return nil
+}
+
+type SnapshotPacket struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tick          uint64                 `protobuf:"varint,1,opt,name=tick,proto3" json:"tick,omitempty"`
+	ServerTimeMs  uint64                 `protobuf:"varint,2,opt,name=server_time_ms,json=serverTimeMs,proto3" json:"server_time_ms,omitempty"`
+	Entities      []*EntitySnapshot      `protobuf:"bytes,3,rep,name=entities,proto3" json:"entities,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SnapshotPacket) Reset() {
+	*x = SnapshotPacket{}
+	mi := &file_rpg_v1_game_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SnapshotPacket) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SnapshotPacket) ProtoMessage() {}
+
+func (x *SnapshotPacket) ProtoReflect() protoreflect.Message {
+	mi := &file_rpg_v1_game_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SnapshotPacket.ProtoReflect.Descriptor instead.
+func (*SnapshotPacket) Descriptor() ([]byte, []int) {
+	return file_rpg_v1_game_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SnapshotPacket) GetTick() uint64 {
+	if x != nil {
+		return x.Tick
+	}
+	return 0
+}
+
+func (x *SnapshotPacket) GetServerTimeMs() uint64 {
+	if x != nil {
+		return x.ServerTimeMs
+	}
+	return 0
+}
+
+func (x *SnapshotPacket) GetEntities() []*EntitySnapshot {
+	if x != nil {
+		return x.Entities
+	}
+	return nil
+}
+
 var File_rpg_v1_game_proto protoreflect.FileDescriptor
 
 const file_rpg_v1_game_proto_rawDesc = "" +
 	"\n" +
-	"\x11rpg/v1/game.proto\x12\x06rpg.v1\"O\n" +
+	"\x11rpg/v1/game.proto\x12\x06rpg.v1\x1a\x13rpg/v1/common.proto\"O\n" +
 	"\vJoinRequest\x12\x1d\n" +
 	"\n" +
 	"join_token\x18\x01 \x01(\tR\tjoinToken\x12!\n" +
 	"\fcharacter_id\x18\x02 \x01(\tR\vcharacterId\"6\n" +
 	"\fJoinResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x16\n" +
-	"\x06reason\x18\x02 \x01(\tR\x06reasonB`Z^github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1;rpgv1b\x06proto3"
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"^\n" +
+	"\vInputPacket\x12\x1a\n" +
+	"\bsequence\x18\x01 \x01(\rR\bsequence\x123\n" +
+	"\x0emove_direction\x18\x02 \x01(\v2\f.rpg.v1.Vec2R\rmoveDirection\"\x95\x01\n" +
+	"\x0eEntitySnapshot\x12\x1b\n" +
+	"\tentity_id\x18\x01 \x01(\tR\bentityId\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\rR\x04type\x12(\n" +
+	"\bposition\x18\x03 \x01(\v2\f.rpg.v1.Vec2R\bposition\x12(\n" +
+	"\bvelocity\x18\x04 \x01(\v2\f.rpg.v1.Vec2R\bvelocity\"~\n" +
+	"\x0eSnapshotPacket\x12\x12\n" +
+	"\x04tick\x18\x01 \x01(\x04R\x04tick\x12$\n" +
+	"\x0eserver_time_ms\x18\x02 \x01(\x04R\fserverTimeMs\x122\n" +
+	"\bentities\x18\x03 \x03(\v2\x16.rpg.v1.EntitySnapshotR\bentitiesB`Z^github.com/ChandonJarrett/authoritative-multiplayer-rpg-backend/internal/protocol/rpg/v1;rpgv1b\x06proto3"
 
 var (
 	file_rpg_v1_game_proto_rawDescOnce sync.Once
@@ -153,17 +346,25 @@ func file_rpg_v1_game_proto_rawDescGZIP() []byte {
 	return file_rpg_v1_game_proto_rawDescData
 }
 
-var file_rpg_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_rpg_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_rpg_v1_game_proto_goTypes = []any{
-	(*JoinRequest)(nil),  // 0: rpg.v1.JoinRequest
-	(*JoinResponse)(nil), // 1: rpg.v1.JoinResponse
+	(*JoinRequest)(nil),    // 0: rpg.v1.JoinRequest
+	(*JoinResponse)(nil),   // 1: rpg.v1.JoinResponse
+	(*InputPacket)(nil),    // 2: rpg.v1.InputPacket
+	(*EntitySnapshot)(nil), // 3: rpg.v1.EntitySnapshot
+	(*SnapshotPacket)(nil), // 4: rpg.v1.SnapshotPacket
+	(*Vec2)(nil),           // 5: rpg.v1.Vec2
 }
 var file_rpg_v1_game_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	5, // 0: rpg.v1.InputPacket.move_direction:type_name -> rpg.v1.Vec2
+	5, // 1: rpg.v1.EntitySnapshot.position:type_name -> rpg.v1.Vec2
+	5, // 2: rpg.v1.EntitySnapshot.velocity:type_name -> rpg.v1.Vec2
+	3, // 3: rpg.v1.SnapshotPacket.entities:type_name -> rpg.v1.EntitySnapshot
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_rpg_v1_game_proto_init() }
@@ -171,13 +372,14 @@ func file_rpg_v1_game_proto_init() {
 	if File_rpg_v1_game_proto != nil {
 		return
 	}
+	file_rpg_v1_common_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rpg_v1_game_proto_rawDesc), len(file_rpg_v1_game_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
