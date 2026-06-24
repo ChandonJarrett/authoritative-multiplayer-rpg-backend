@@ -126,7 +126,9 @@ func (k KeyBuilder) CharacterLock(characterID string) (string, error) {
 
 // RateLimit returns the Redis key for rate-limit counters.
 func (k KeyBuilder) RateLimit(parts ...string) (string, error) {
-	all := append([]string{"rate_limit"}, parts...)
+	all := make([]string, 0, len(parts)+1)
+	all = append(all, "rate_limit")
+	all = append(all, parts...)
 	return k.build(all...)
 }
 
