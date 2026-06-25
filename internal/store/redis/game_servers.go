@@ -200,7 +200,7 @@ func (s *GameServerStore) getGameServer(ctx context.Context, serverID string) (d
 	if _, err := validate.RequiredID("server ID", payload.ID); err != nil {
 		return domain.GameServer{}, domain.ErrNotFound
 	}
-	if _, err := validate.RequiredID("server address", payload.Addr); err != nil {
+	if _, err := validate.ServerAddress(payload.Addr); err != nil {
 		return domain.GameServer{}, domain.ErrNotFound
 	}
 

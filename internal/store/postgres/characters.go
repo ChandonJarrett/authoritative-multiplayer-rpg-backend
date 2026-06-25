@@ -31,7 +31,7 @@ func (s *CharacterStore) CreateCharacter(ctx context.Context, character domain.C
             name,
             map_id,
             position_x,
-            position_y,
+            position_y
         )
         VALUES (
             $1,
@@ -39,8 +39,7 @@ func (s *CharacterStore) CreateCharacter(ctx context.Context, character domain.C
             $3,
             $4,
             $5,
-            $6,
-            $7
+            $6
         )
     `
 	_, err := s.pool.Exec(

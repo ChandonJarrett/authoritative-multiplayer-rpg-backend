@@ -114,7 +114,7 @@ func (s *JoinTokenStore) ConsumeJoinToken(ctx context.Context, token string) (do
 	if _, err := validate.RequiredID("server ID", payload.ServerID); err != nil {
 		return domain.JoinToken{}, domain.ErrUnauthenticated
 	}
-	if _, err := validate.RequiredID("server address", payload.ServerAddr); err != nil {
+	if _, err := validate.ServerAddress(payload.ServerAddr); err != nil {
 		return domain.JoinToken{}, domain.ErrUnauthenticated
 	}
 
