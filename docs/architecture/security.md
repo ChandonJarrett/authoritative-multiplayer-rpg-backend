@@ -38,8 +38,7 @@ The foundation: **clients are untrusted.**
 - When a character enters a game server, a lock is set in Redis, 20s TTL, renewed by heartbeat.
 - This prevents the same character from loading on two game servers simultaneously, which would allow duplication exploits.
 - If a game server crashes, the lock expires automatically after 20s.
-
-> Character lock primitives exist. The live ENet join path that redeems join tokens and acquires locks is still incomplete.
+- The full lock acquisition and join path is verified by the integration test in `internal/app/integration_test.go`.
 
 ---
 

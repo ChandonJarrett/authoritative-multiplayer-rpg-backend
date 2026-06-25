@@ -29,7 +29,7 @@ Use **PostgreSQL** for persistent relational data and **Redis** for ephemeral co
 
 - Join tokens, 60s TTL, single-use
 - Active sessions, 2h TTL
-- User -> sessions mapping, for session revocation and future broadcast workflows
+- User sessions mapping, for session revocation and future broadcast workflows
 - Game server registry, 10s TTL, renewed by heartbeat; crashed servers deregister automatically
 - Character locks, 20s TTL, prevents a character loading on two game servers simultaneously
 - Rate-limit counters, window configured by environment

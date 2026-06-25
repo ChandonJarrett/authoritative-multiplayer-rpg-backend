@@ -1,12 +1,10 @@
 # Game Server
 
-The game server owns the authoritative real-time simulation. Clients are untrusted input sources, they never directly mutate state.
-
-The current implementation has the game server lifecycle shell in place: it starts runtime dependencies, exposes HTTP health/readiness endpoints, registers itself in Redis, renews its registry heartbeat, and shuts down gracefully. The ENet host and simulation loops are still incomplete.
+The game server owns the authoritative real-time simulation. Clients are untrusted input sources; they never directly mutate state.
 
 ---
 
-## Current lifecycle
+## Lifecycle
 
 ```text
 1. Load and validate config
@@ -16,39 +14,40 @@ The current implementation has the game server lifecycle shell in place: it star
 5. Connect to Redis
 6. Create Redis key builder
 7. Start game server HTTP health/readiness endpoint on GAME_HTTP_ADDR
-8. Register game server in Redis with TTL
-9. Renew game server registry heartbeat until shutdown
-10. Wait for shutdown signal
-11. Stop HTTP server
-12. Deregister game server from Redis
-13. Close Redis
-14. Close PostgreSQL
-15. Exit
+8. Start ENet host on GAME_ENET_ADDR
+9. Register game server in Redis with TTL
+10. Renew game server registry heartbeat until shutdown
+11. Accept and process ENet client connections
+12. Wait for shutdown signal
+13. Stop accepting new ENet clients
+14. Stop HTTP server
+15. Deregister game server from Redis
+16. Close Redis
+17. Close PostgreSQL
+18. Exit
 ```
 
 ---
 
-## Planned request-response loop
+## Request-response loop
 
 ```text
-1. Client sends an InputPacket, unreliable ENet channel 1
+1. Client sends an InputPacket on unreliable ENet channel 1
 2. Server validates the input
 3. Server applies valid input during the next simulation tick
 4. Server updates authoritative world state
-5. Server broadcasts SnapshotPacket to all clients, unreliable channel 1
+5. Server broadcasts SnapshotPacket to all clients on unreliable channel 1
 6. Clients interpolate between snapshots for smooth rendering
 ```
 
 ---
 
-## Target rates
+## Tick rates
 
-| Loop | Target rate |
+| Loop | Rate |
 |---|---|
 | Simulation tick | 64Hz |
 | Snapshot broadcast | 32Hz |
-
-These are architectural targets, not hard-coded guarantees.
 
 ---
 
@@ -80,8 +79,17 @@ The game server avoids per-frame PostgreSQL writes. Durable saves happen only at
 
 ## Join handshake
 
-Clients connect via ENet and send a `JoinRequest`, reliable channel 0, containing a short-lived join token issued by the API server and a `character_id`. The game server validates the token, acquires a character lock in Redis, and responds with `JoinResponse`.
+Clients connect via ENet and send a `JoinRequest` on reliable channel 0, containing a short-lived join token issued by the API server and a `character_id`. The game server validates the token against Redis, acquires a character lock to prevent duplicate loads, and responds with `JoinResponse`.
 
-If validation fails, the client receives an error reason and is disconnected.
+If validation fails, the client receives an error reason and is disconnected. The entire handshake is verified by the integration test in `internal/app/integration_test.go`.
 
-> This handshake is the intended design. Join-token redemption, lock acquisition in the live join path, and ENet connection handling are not complete yet.
+---
+
+## Channels
+
+| Channel | Delivery | Message types |
+|---|---|---|
+| 0 | Reliable | `JoinRequest`, `JoinResponse` |
+| 1 | Unreliable | `InputPacket` (client to server), `SnapshotPacket` (server to client) |
+
+Unreliable delivery is intentional for snapshots. A late packet is superseded by the next one. Retransmitting stale positional data is worse than dropping it.

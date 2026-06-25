@@ -11,7 +11,7 @@ PostgreSQL is the source of truth for anything that must survive a process resta
 **Current schema:**
 
 - `users`: id (UUID), email (citext, unique), password_hash
-- `characters`: id (UUID), user_id (FK -> users), name (citext), map_id, position (x/y/z), timestamps
+- `characters`: id (UUID), user_id (FK to users), name (citext), map_id, position (x/y/z), timestamps
 
 **Future:**
 
@@ -19,7 +19,7 @@ PostgreSQL is the source of truth for anything that must survive a process resta
 - Quests and progression
 - Economy data
 
-PostgreSQL enforces referential integrity (`user_id` -> `users`) and uses triggers to maintain `updated_at` automatically.
+PostgreSQL enforces referential integrity (`user_id` references `users`) and uses triggers to maintain `updated_at` automatically.
 
 ---
 

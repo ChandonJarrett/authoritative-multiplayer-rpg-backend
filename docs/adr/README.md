@@ -11,6 +11,6 @@ Significant architectural decisions are recorded here. Each ADR captures the con
 
 ## Format
 
-Each ADR follows the structure: **Context -> Decision -> Consequences**.
+Each ADR follows the structure: **Context, Decision, then Consequences**.
 
 When a decision is revisited, mark the old ADR as superseded and link to the new one, do not delete or modify historical records.

@@ -8,16 +8,19 @@ The backend is split into two services that own distinct concerns and never shar
          V
  ________________       ________________
  |  API server  |       |  Game server |
- |  ConnectRPC  |   ->  │  ENet / UDP  |
- |  HTTP / gRPC |       │              |
+ |  ConnectRPC  |       |  ENet / UDP  |
+ |  HTTP / gRPC |       |              |
  ________________       ________________
               |            |
               \____________/
                      |
   ______________     |      _____________
-  | PostgreSQL │  <----->   │   Redis   |
-  |  durable   |            | ephemeral |
-  ______________            _____________
+  | PostgreSQL |     |      |   Redis    |
+  |  durable   |     |      | ephemeral  |
+  ______________     |      _____________
+                     |
+              Handoff via Redis
+             (join tokens, locks)
 ```
 
 ---
@@ -51,30 +54,22 @@ Owns account, authentication, character management, and game handoff.
 
 Owns the authoritative real-time simulation.
 
-**Currently implemented:**
+**Responsibilities:**
 
-- Game server process lifecycle
+- Game server process lifecycle with graceful shutdown
 - HTTP health/readiness endpoint
-- Redis game-server registration
-- Redis registry heartbeat
-- Graceful shutdown and deregistration
-
-**Planned responsibilities:**
-
-- ENet host lifecycle
-- Client connection handling
-- Join-token validation
-- Character lock acquisition
-- Authoritative simulation tick, target: 64Hz
-- World snapshot broadcasts to clients, target: 32Hz
-- Session heartbeat updates in Redis
-- Graceful disconnect handling
+- Redis game-server registration with heartbeat renewal
+- ENet host lifecycle and client connection handling
+- Join-token validation and character lock acquisition
+- Authoritative simulation tick at 64Hz
+- World snapshot broadcast to clients at 32Hz
+- Graceful disconnect handling and deregistration
 
 **Must not:**
 
 - Perform per-frame PostgreSQL writes
 - Trust client-supplied state
-- Mutate durable player data outside of explicit save boundaries, load, checkpoint, logout, zone transfer
+- Mutate durable player data outside of explicit save boundaries: load, checkpoint, logout, zone transfer
 
 ---
 

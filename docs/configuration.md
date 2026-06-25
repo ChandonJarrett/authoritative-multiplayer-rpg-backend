@@ -90,8 +90,6 @@ Bind address for the game server ENet/UDP listener.
 
 Default: `:7777`
 
-> The ENet simulation plane is still incomplete. This address is reserved for the game transport.
-
 ### `GAME_HTTP_ADDR`
 
 Bind address for the game server HTTP listener used by health and readiness endpoints.

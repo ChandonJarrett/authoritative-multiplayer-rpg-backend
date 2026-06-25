@@ -15,7 +15,7 @@ Use the devcontainer unless you have a specific reason not to. Local development
 
 Open the repository in the devcontainer. On first creation, the container automatically runs `make setup`, which:
 
-- copies `.env.example` -> `.env` if missing
+- copies `.env.example` to `.env` if missing
 - installs Git hooks
 - installs Go tools
 - downloads Go modules
@@ -50,7 +50,7 @@ Configuration lives in `.golangci.yaml`. Key details:
 
 ```bash
 make ci-fast       # pre-commit checks: lint, fmt, vet, unit tests
-make test          # unit + integration tests
+make test          # unit and integration tests
 make proto         # regenerate protobuf after editing .proto files
 make run-api       # start the API server
 make run-game      # start the game server
@@ -58,7 +58,7 @@ make run-game      # start the game server
 
 `make run-api` starts the ConnectRPC API server with health, readiness, metrics, middleware, auth, character, and game handoff handlers mounted.
 
-`make run-game` starts the game server lifecycle shell with HTTP health/readiness and Redis registry heartbeat. The ENet host and simulation loop are still incomplete.
+`make run-game` starts the game server with the full ENet host lifecycle, join-token redemption, 64Hz simulation loop, and 32Hz snapshot broadcast.
 
 ---
 
@@ -97,7 +97,7 @@ make proto-lint      # lint .proto files against buf rules
 make proto-breaking  # check for wire-breaking changes against main
 ```
 
-Add a new RPC: edit the `.proto` file -> `make proto` -> implement the generated interface.
+Add a new RPC: edit the `.proto` file, run `make proto`, then implement the generated interface.
 
 Current API proto services include:
 

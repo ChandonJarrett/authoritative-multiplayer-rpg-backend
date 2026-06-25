@@ -69,7 +69,7 @@ No proxy or gateway required.
 | Channel | Delivery | Message types |
 |---|---|---|
 | 0 | Reliable | `JoinRequest`, `JoinResponse` |
-| 1 | Unreliable | `InputPacket` client -> server, `SnapshotPacket` server -> client |
+| 1 | Unreliable | `InputPacket` (client to server), `SnapshotPacket` (server to client) |
 
 Unreliable delivery is intentional for snapshots. A late packet is superseded by the next one. Retransmitting stale positional data is worse than dropping it.
 

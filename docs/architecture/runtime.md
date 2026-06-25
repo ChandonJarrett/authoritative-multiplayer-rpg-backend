@@ -46,24 +46,19 @@ The `Runtime` struct holds:
 6. Create Redis key builder
 7. Create game server with ENet addr, HTTP addr, logger, shutdown timeout, and Redis registry
 8. Start HTTP health/readiness endpoint on GAME_HTTP_ADDR
-9. Register game server in Redis with TTL heartbeat
-10. Wait for shutdown signal
-11. Stop HTTP server
-12. Deregister game server from Redis
-13. Close Redis
-14. Close PostgreSQL
-15. Exit
+9. Initialize ENet host on GAME_ENET_ADDR
+10. Register game server in Redis with TTL heartbeat
+11. Accept ENet client connections, redeem join tokens, acquire character locks
+12. Start simulation loop, 64Hz
+13. Start snapshot broadcast loop, 32Hz
+14. Wait for shutdown signal
+15. Stop accepting new ENet clients
+16. Stop HTTP server
+17. Deregister game server from Redis
+18. Close Redis
+19. Close PostgreSQL
+20. Exit
 ```
-
-Still planned for the game server:
-
-- Initialize ENet host on `GAME_ENET_ADDR`
-- Redeem join tokens on incoming ENet join requests
-- Acquire and renew character locks in the live join path
-- Start simulation loop, target 64Hz
-- Start snapshot broadcast loop, target 32Hz
-- Stop accepting new ENet clients on shutdown
-- Release live session locks on disconnect/shutdown
 
 ---
 
@@ -77,6 +72,6 @@ Still planned for the game server:
 
 ## Current state
 
-The API server is now a runnable ConnectRPC service with system, auth, character, and game handoff handlers mounted.
+The API server is a fully operational ConnectRPC service with system, auth, character, and game handoff handlers mounted.
 
-The game server now has a runnable lifecycle shell with health/readiness endpoints and Redis registration heartbeat. It does not yet run the ENet host or simulation loops.
+The game server runs its complete lifecycle: ENet host, join-token redemption, character lock acquisition, 64Hz simulation tick, and 32Hz snapshot broadcast. The full end-to-end flow is verified by `internal/app/integration_test.go`.

@@ -20,14 +20,14 @@ ENet is battle-tested in production games and has a stable C library accessible 
 
 ## Decision
 
-Use ENet, via `libenet`, as the transport layer for all game server <-> client communication.
+Use ENet, via `libenet`, as the transport layer for all communication between the game server and client.
 
 Channels are allocated by message semantics:
 
 | Channel | Delivery | Messages |
 |---|---|---|
 | 0 | Reliable | `JoinRequest`, `JoinResponse`, inventory updates, infrequent events |
-| 1 | Unreliable | `InputPacket` client -> server, `SnapshotPacket` server -> client |
+| 1 | Unreliable | `InputPacket` (client to server), `SnapshotPacket` (server to client) |
 
 Unreliable delivery is correct for high-frequency snapshots. A dropped snapshot is simply superseded by the next broadcast. Retransmitting stale positional data would deliver incorrect history.
 

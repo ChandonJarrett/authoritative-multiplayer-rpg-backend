@@ -25,8 +25,8 @@ Use [ConnectRPC](https://connectrpc.com) as the protocol layer for the API serve
 Service definitions live in `api.proto`. The `protoc-gen-connect-go` plugin generates handler interfaces and typed client stubs. The API server mounts handlers on a standard `net/http` mux.
 
 ```text
-Browser, connect-es or fetch    ->  Connect protocol, HTTP/1.1 or HTTP/2, JSON or binary
-Native client / grpcurl         ->  gRPC, HTTP/2, binary protobuf
+Browser, connect-es or fetch    to  Connect protocol, HTTP/1.1 or HTTP/2, JSON or binary
+Native client / grpcurl         to  gRPC, HTTP/2, binary protobuf
                                           |
                                           V
                                API server ConnectRPC handler
@@ -45,7 +45,7 @@ Native client / grpcurl         ->  gRPC, HTTP/2, binary protobuf
 - `api.proto` is the single contract; no REST annotations or OpenAPI specs to maintain separately.
 - Browser clients get a typed TypeScript client via `connect-es` from the same proto files.
 - Standard `net/http` mux means middleware, logging, auth, CORS, rate limiting, applies uniformly.
-- Adding a new RPC: edit `api.proto` -> `make proto` -> implement the generated interface.
+- Adding a new RPC: edit `api.proto`, run `make proto`, then implement the generated interface.
 
 **Trade-offs:**
 
